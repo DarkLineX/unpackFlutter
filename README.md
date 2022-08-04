@@ -11,3 +11,7 @@
 更多访问我的星球 特价试运营中
 
 ![](res/xq.png)
+
+### 感谢以下仓库提供参考
+
+ https://github.com/rscloura/Doldrums
