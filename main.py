@@ -23,8 +23,8 @@ def get_AOTSymbols(sections):
     return aot_symbols
 
 
-def parse_elf_file():
-    f = ELFFile(open('res/libapp.so', 'rb'))
+def parse_elf_file(file_path):
+    f = ELFFile(open(file_path, 'rb'))
     sections = list(f.iter_sections())  # 所有section
     aot_symbols = get_AOTSymbols(sections)
     Snapshots = {}
@@ -49,6 +49,7 @@ def parse_elf_file():
     isolate_snapshot_data = Snapshots['_kDartIsolateSnapshotData']
 
     vm_snapshot_ = Snapshot(vm_snapshot_data['blob']).SnapshotSetupFromBuffer()
+    # isolate_snapshot_ = Snapshot(isolate_snapshot_data['blob']).SnapshotSetupFromBuffer()
 
 
 def snapshot_header_reader(snapshot):
@@ -56,4 +57,5 @@ def snapshot_header_reader(snapshot):
 
 
 if __name__ == '__main__':
-    parse_elf_file()
+    #parse_elf_file('res/libapp-v2_10-arm64v8.so')
+    parse_elf_file('res/libapp.so')

@@ -1,7 +1,8 @@
 from enum import Enum
 from io import BytesIO
 
-from dart_runtime.app_snapshot import  ReadVersion, ReadFeatures
+from dart_runtime.app_snapshot import ReadVersion, ReadFeatures
+from dart_runtime.deserializer import Deserializer
 
 kMagicOffset = 0
 kMagicSize = 4
@@ -55,10 +56,8 @@ class Snapshot:
         print(self.kind())
         print(ReadVersion(self.stream))
         print(ReadFeatures(self.stream))
-
-        # snapshotHash = self.stream.read(32).decode('UTF-8')
-        # print(snapshotHash)
-
+        Deserializer(stream=self.stream).deserialize()
+        
     def check_magic(self):
         magic = hex(int.from_bytes(self.stream.read(kMagicSize), 'little'))
         return magic
