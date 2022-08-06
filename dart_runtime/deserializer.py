@@ -26,11 +26,10 @@ class Deserializer:
               self.initial_field_table_len,
               self.instructions_table_len, self.instruction_table_data_offset)
 
-        # for i in range(self.num_clusters_):
-        #     count = readUnsigned(self.stream)
-        #     print(count)
-        #     for _ in range(count):
-        #         print('readCid', readCid(self.stream))
+        for i in range(self.num_clusters_):
+            # count = readUnsigned(self.stream)
+            # print(count)
+            print('readCid', readCid(self.stream))
 
     def readClusterAlloc(self, isCanonical):
         cid = readCid(self.stream)

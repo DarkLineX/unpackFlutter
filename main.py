@@ -52,10 +52,6 @@ def parse_elf_file(file_path):
     # isolate_snapshot_ = Snapshot(isolate_snapshot_data['blob']).SnapshotSetupFromBuffer()
 
 
-def snapshot_header_reader(snapshot):
-    stream = BytesIO(snapshot)
-
-
 if __name__ == '__main__':
-    #parse_elf_file('res/libapp-v2_10-arm64v8.so')
+    # parse_elf_file('res/libapp-v2_10-arm64v8.so')
     parse_elf_file('res/libapp.so')
