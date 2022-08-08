@@ -1,4 +1,6 @@
-from dart_runtime.datastream import readUnsigned, readCid, read, readInt
+from dart_runtime.cid import kNumPredefinedCids, kInstanceCid
+from dart_runtime.clusters import Clusters, InstanceDeserializationCluster
+from dart_runtime.datastream import readUnsigned, readInt, kMaxUint32
 
 
 class Deserializer:
@@ -12,6 +14,7 @@ class Deserializer:
         self.instruction_table_data_offset = None
         self.unit_program_hash = None
         self.stream = stream
+        self.cluster_list = []
 
     def deserialize(self):
         self.num_base_objects_ = readUnsigned(self.stream)
@@ -27,8 +30,22 @@ class Deserializer:
               self.instructions_table_len, self.instruction_table_data_offset)
 
         for _ in range(self.num_clusters_):
-            print("cid", readCid(self.stream))
+            cluster = self.readCluster()
+            self.cluster_list.append(cluster)
+            cluster.readAlloc(False)
 
-    def readClusterAlloc(self, isCanonical):
-        cid = readCid(self.stream)
-        print(cid)
+    def readCluster(self):
+        cid_and_canonical = readInt(self.stream)
+        cid = (cid_and_canonical >> 1) & kMaxUint32
+        is_canonical = (cid_and_canonical & 0x1) == 0x1
+
+        print("cid_and_canonical", cid_and_canonical,'cid',cid,'is_canonical',is_canonical)
+
+
+        # 判断cid
+
+        if cid >= kNumPredefinedCids and cid == kInstanceCid:
+            return InstanceDeserializationCluster(cid, is_canonical);
+
+        return Clusters(cid)
+

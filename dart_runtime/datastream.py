@@ -28,17 +28,13 @@ def readUnsigned(stream):
     return read(stream, kEndUnsignedByteMarker)
 
 
-def readCid(stream):
-    cid_and_canonical = readInt(stream)
-    cid = (cid_and_canonical >> 1) & kMaxUint32
-    return cid
-
-
 def readInt(stream):
     return read(stream, kEndByteMarker)
 
+
 def readByte(stream):
     return int.from_bytes(stream.read(1), 'big', signed=False)
+
 
 def readString(stream):
     res = b''

@@ -1,6 +1,22 @@
 from enum import Enum
 
 
+def IsTypedDataViewClassId(cid):
+    return False
+
+
+def IsExternalTypedDataClassId(cid):
+    return False
+
+
+def IsTypedDataClassId(cid):
+    return False
+
+
+kNumPredefinedCids = 158
+kInstanceCid = 43
+
+
 class ClassId(Enum):
     kIllegalCid = 0
     kNativePointer = 1
