@@ -27,8 +27,18 @@ def readUnsigned(stream):
     return read(stream, kEndUnsignedByteMarker)
 
 
-def readInt(stream):
+def readInt(stream, size):
+    if size == 8:
+        return int.from_bytes(stream.read(1), 'big', signed=True)  # No marker
     return read(stream, kEndByteMarker)
+
+
+def readInt_64(stream):
+    return readInt(stream, 4)
+
+
+def readInt_32(stream, ):
+    return readInt(stream, 4)
 
 
 def readByte(stream):

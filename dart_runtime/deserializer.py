@@ -1,8 +1,8 @@
 from dart_runtime.cid import kNumPredefinedCids, kInstanceCid, IsTypedDataViewClassId, IsExternalTypedDataClassId, \
     IsTypedDataClassId
 from dart_runtime.clusters import Clusters, InstanceDeserializationCluster, TypedDataViewDeserializationCluster, \
-    ClassDeserializationCluster, TypedDataDeserializationCluster
-from dart_runtime.datastream import readUnsigned, readInt, kMaxUint32
+    ClassDeserializationCluster, TypedDataDeserializationCluster, ClusterGetter
+from dart_runtime.datastream import readUnsigned, readInt, kMaxUint32, readInt_64
 
 
 class Deserializer:
@@ -31,16 +31,16 @@ class Deserializer:
               self.initial_field_table_len,
               self.instructions_table_len, self.instruction_table_data_offset)
 
-        for _ in range(self.num_clusters_):
+        for _ in range(304):
             cluster = self.readCluster()
             self.cluster_list.append(cluster)
             cluster.readAlloc(False)
 
     def readCluster(self):
-        cid_and_canonical = readInt(self.stream)
+        cid_and_canonical = readInt_64(self.stream)
         cid = (cid_and_canonical >> 1) & kMaxUint32
         is_canonical = (cid_and_canonical & 0x1) == 0x1
-        print("cid_and_canonical", cid_and_canonical, 'cid', cid, 'is_canonical', is_canonical)
+        # print("cid_and_canonical", cid_and_canonical, 'cid', cid, 'is_canonical', is_canonical)
         # 判断cid
         if cid >= kNumPredefinedCids and cid == kInstanceCid:
             return InstanceDeserializationCluster(cid, is_canonical)
@@ -51,5 +51,6 @@ class Deserializer:
         if IsTypedDataClassId(cid):
             return TypedDataDeserializationCluster(cid)
         ###
-        if cid == 111:
-            return None
+        cluster = ClusterGetter(cid, self.stream).getCluster()
+        print(cluster, cid)
+        return cluster
