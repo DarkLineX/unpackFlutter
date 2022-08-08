@@ -6,42 +6,55 @@ switch (cid) {
     case kTypeParametersCid:
       THR_Print("MiDuoKi Deserializer::ReadCluster()  TypeParametersDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) TypeParametersDeserializationCluster();
+
     case kTypeArgumentsCid:
       THR_Print("MiDuoKi Deserializer::ReadCluster()  TypeArgumentsDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z)
           TypeArgumentsDeserializationCluster(is_canonical, !is_non_root_unit_);
+
     case kPatchClassCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  PatchClassDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) PatchClassDeserializationCluster();
+
     case kFunctionCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  FunctionDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) FunctionDeserializationCluster();
+
+
     case kClosureDataCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ClosureDataDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) ClosureDataDeserializationCluster();
+
     case kFfiTrampolineDataCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  FfiTrampolineDataDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) FfiTrampolineDataDeserializationCluster();
+
+
     case kFieldCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  FieldDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) FieldDeserializationCluster();
+
     case kScriptCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ScriptDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) ScriptDeserializationCluster();
+
     case kLibraryCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  LibraryDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) LibraryDeserializationCluster();
+
+
     case kNamespaceCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  NamespaceDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) NamespaceDeserializationCluster();
+
 #if !defined(DART_PRECOMPILED_RUNTIME)
     case kKernelProgramInfoCid:
       ASSERT(!is_canonical);
@@ -52,6 +65,7 @@ switch (cid) {
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  CodeDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) CodeDeserializationCluster();
+
     case kObjectPoolCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ObjectPoolDeserializationCluster %d %ld" , is_canonical , cid);
@@ -60,6 +74,8 @@ switch (cid) {
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  PcDescriptorsDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) PcDescriptorsDeserializationCluster();
+
+
     case kCodeSourceMapCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  CodeSourceMapDeserializationCluster %d %ld" , is_canonical , cid);
@@ -72,6 +88,8 @@ switch (cid) {
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ExceptionHandlersDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) ExceptionHandlersDeserializationCluster();
+
+
     case kContextCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ContextDeserializationCluster %d %ld" , is_canonical , cid);
@@ -80,6 +98,9 @@ switch (cid) {
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ContextScopeDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) ContextScopeDeserializationCluster();
+
+
+
     case kUnlinkedCallCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  UnlinkedCallDeserializationCluster %d %ld" , is_canonical , cid);
@@ -88,6 +109,7 @@ switch (cid) {
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ICDataDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) ICDataDeserializationCluster();
+
     case kMegamorphicCacheCid:
       ASSERT(!is_canonical);
       return new (Z) MegamorphicCacheDeserializationCluster();
@@ -95,6 +117,8 @@ switch (cid) {
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  SubtypeTestCacheDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) SubtypeTestCacheDeserializationCluster();
+
+
     case kLoadingUnitCid:
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  LoadingUnitDeserializationCluster %d %ld" , is_canonical , cid);
@@ -111,6 +135,8 @@ switch (cid) {
       ASSERT(!is_canonical);
       THR_Print("MiDuoKi Deserializer::ReadCluster()  LibraryPrefixDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) LibraryPrefixDeserializationCluster();
+
+
     case kTypeCid:
       THR_Print("MiDuoKi Deserializer::ReadCluster()  TypeDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z)
@@ -130,6 +156,8 @@ switch (cid) {
     case kClosureCid:
       THR_Print("MiDuoKi Deserializer::ReadCluster()  ClosureDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) ClosureDeserializationCluster(is_canonical);
+
+
     case kMintCid:
       THR_Print("MiDuoKi Deserializer::ReadCluster()  MintDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) MintDeserializationCluster(is_canonical);
@@ -155,6 +183,8 @@ switch (cid) {
     case kLinkedHashMapCid:
       // We do not have mutable hash maps in snapshots.
       UNREACHABLE();
+
+
     case kImmutableLinkedHashMapCid:
       THR_Print("MiDuoKi Deserializer::ReadCluster()  LinkedHashMapDeserializationCluster %d %ld" , is_canonical , cid);
       return new (Z) LinkedHashMapDeserializationCluster(

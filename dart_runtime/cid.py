@@ -18,13 +18,13 @@ kInstanceCid = 43
 
 
 class ClassId(Enum):
-    kIllegalCid = 0
-    kNativePointer = 1
-    kFreeListElement = 2
-    kForwardingCorpse = 3
+    kIllegalCid = 0  # x
+    kNativePointer = 1  # x
+    kFreeListElement = 2  # x
+    kForwardingCorpse = 3  # x
     #  CLASS_LIST(DEFINE_OBJECT_KIND)    5 - 92
     #  CLASS_LIST_FFI(DEFINE_OBJECT_KIND) 93 - 108
-    #  CLASS_LIST_TYPED_DATA(DEFINE_OBJECT_KIND) 109 - 122
+    #  CLASS_LIST_TYPED_DATA(DEFINE_OBJECT_KIND) 110 - 123
     kByteDataViewCid = 123
     kByteBufferCid = 124
     kNullCid = 125
@@ -35,7 +35,7 @@ class ClassId(Enum):
 
 
 class CLASS_LIST(Enum):
-    Object = 4
+    kObject = 4
     # CLASS_LIST_NO_OBJECT(V) 5 - 92
 
 
@@ -55,86 +55,86 @@ class CLASS_LIST_NO_OBJECT_NOR_STRING_NOR_ARRAY_NOR_MAP(Enum):
 
 
 class CLASS_LIST_INTERNAL_ONLY(Enum):
-    Class = 5
-    PatchClass = 6
-    Function = 7
-    TypeParameters = 8
-    ClosureData = 9
-    FfiTrampolineData = 10
-    Field = 11
-    Script = 12
-    Library = 13
-    Namespace = 14
-    KernelProgramInfo = 15
-    WeakSerializationReference = 16
-    Code = 17
-    Instructions = 18
-    InstructionsSection = 19
-    InstructionsTable = 20
-    ObjectPool = 21
-    PcDescriptors = 22
-    CodeSourceMap = 23
-    CompressedStackMaps = 24
-    LocalVarDescriptors = 25
-    ExceptionHandlers = 26
-    Context = 27
-    ContextScope = 28
-    Sentinel = 29
-    SingleTargetCache = 30
-    UnlinkedCall = 31
-    MonomorphicSmiableCall = 32
-    CallSiteData = 33
-    ICData = 34
-    MegamorphicCache = 35
-    SubtypeTestCache = 36
-    LoadingUnit = 37
-    Error = 38
-    ApiError = 39
-    LanguageError = 40
-    UnhandledException = 41
-    UnwindError = 42
+    kClass = 5
+    kPatchClass = 6
+    kFunction = 7
+    kTypeParameters = 8  # x
+    kClosureData = 9 # x
+    kFfiTrampolineData = 10
+    kField = 11
+    kScript = 12
+    kLibrary = 13
+    kNamespace = 14
+    kKernelProgramInfo = 15
+    kWeakSerializationReference = 16
+    kCode = 17
+    kInstructions = 18
+    kInstructionsSection = 19
+    kInstructionsTable = 20
+    kObjectPool = 21  # x
+    kPcDescriptors = 22
+    kCodeSourceMap = 23
+    kCompressedStackMaps = 24
+    kLocalVarDescriptors = 25
+    kExceptionHandlers = 26
+    kContext = 27
+    kContextScope = 28
+    kSentinel = 29
+    kSingleTargetCache = 30
+    kUnlinkedCall = 31
+    kMonomorphicSmiableCall = 32
+    kCallSiteData = 33
+    kICData = 34
+    kMegamorphicCache = 35
+    kSubtypeTestCache = 36
+    kLoadingUnit = 37
+    kError = 38
+    kApiError = 39
+    kLanguageError = 40
+    kUnhandledException = 41
+    kUnwindError = 42
 
 
 class CLASS_LIST_INSTANCE_SINGLETONS(Enum):
-    Instance = 42
-    LibraryPrefix = 44
-    TypeArguments = 45
-    AbstractType = 46
-    Type = 47
-    FinalizerBase = 48
-    Finalizer = 49
-    NativeFinalizer = 50
-    FinalizerEntry = 51
-    FunctionType = 52
-    TypeRef = 53
-    TypeParameter = 54
-    Closure = 55
-    Number = 56
-    Integer = 57
-    Smi = 58
-    Mint = 59
-    Double = 60
-    Bool = 61
-    Float32x4 = 62
-    Int32x4 = 63
-    Float64x2 = 64
-    TypedDataBase = 65
-    TypedData = 66
-    ExternalTypedData = 67
-    TypedDataView = 68
-    Pointer = 69
-    DynamicLibrary = 70
-    Capability = 71
-    ReceivePort = 72
-    SendPort = 73
-    StackTrace = 74
-    RegExp = 75
-    WeakProperty = 76
-    WeakReference = 77
-    MirrorReference = 78
-    FutureOr = 79
-    UserTag = 80
-    TransferableTypedData = 81
+    kInstance = 42
+    kLibraryPrefix = 44
+    kTypeArguments = 45
+    kAbstractType = 46
+    kType = 47
+    kFinalizerBase = 48
+    kFinalizer = 49
+    kNativeFinalizer = 50
+    kFinalizerEntry = 51
+    kFunctionType = 52
+    kTypeRef = 53  # x
+    kTypeParameter = 54
+    kClosure = 55
+    kNumber = 56
+    kInteger = 57
+    kSmi = 58
+    kMint = 59
+    kDouble = 60
+    kBool = 61
+    kFloat32x4 = 62
+    kInt32x4 = 63
+    kFloat64x2 = 64
+    kTypedDataBase = 65
+    kTypedData = 66
+    kExternalTypedData = 67
+    kTypedDataView = 68
+    kPointer = 69
+    kDynamicLibrary = 70
+    kCapability = 71
+    kReceivePort = 72
+    kSendPort = 73
+    kStackTrace = 74
+    kRegExp = 75
+    kWeakProperty = 76
+    kWeakReference = 77
+    kMirrorReference = 78
+    kFutureOr = 79
+    kUserTag = 80
+    kTransferableTypedData = 81
 
 
 class CLASS_LIST_MAPS(Enum):
@@ -158,11 +158,11 @@ class CLASS_LIST_FIXED_LENGTH_ARRAYS(Enum):
 
 
 class CLASS_LIST_STRINGS(Enum):
-    String = 88
-    OneByteString = 89
-    TwoByteString = 90
-    ExternalOneByteString = 91
-    ExternalTwoByteString = 92
+    String = 89
+    OneByteString = 90
+    TwoByteString = 91
+    ExternalOneByteString = 92
+    ExternalTwoByteString = 93
 
 
 class CLASS_LIST_FFI(Enum):
@@ -193,17 +193,17 @@ class CLASS_LIST_FFI_NUMERIC_FIXED_SIZE(Enum):
 
 
 class CLASS_LIST_TYPED_DATA(Enum):
-    TYPE_Int8Array = 109
-    TYPE_Uint8Array = 110
-    TYPE_Uint8ClampedArray = 111
-    TYPE_Int16Array = 112
-    TYPE_Uint16Array = 113
-    TYPE_Int32Array = 114
-    TYPE_Uint32Array = 115
-    TYPE_Int64Array = 116
-    TYPE_Uint64Array = 117
-    TYPE_Float32Array = 118
-    TYPE_Float64Array = 119
-    TYPE_Float32x4Array = 120
-    TYPE_Int32x4Array = 121
-    TYPE_Float64x2Array = 122
+    TYPE_Int8Array = 110
+    TYPE_Uint8Array = 111
+    TYPE_Uint8ClampedArray = 112
+    TYPE_Int16Array = 113
+    TYPE_Uint16Array = 114
+    TYPE_Int32Array = 115
+    TYPE_Uint32Array = 116
+    TYPE_Int64Array = 117
+    TYPE_Uint64Array = 118
+    TYPE_Float32Array = 119
+    TYPE_Float64Array = 120
+    TYPE_Float32x4Array = 121
+    TYPE_Int32x4Array = 122
+    TYPE_Float64x2Array = 123
