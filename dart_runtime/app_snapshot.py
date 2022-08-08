@@ -9,4 +9,6 @@ def ReadVersion(stream):
 
 
 def ReadFeatures(stream):
-    return readString(stream)
+    s, i = readString(stream)
+    print('read size ', i)
+    return s

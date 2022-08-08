@@ -14,22 +14,18 @@ class Deserializer:
         self.stream = stream
 
     def deserialize(self):
+        self.stream.seek(215)
         self.num_base_objects_ = readUnsigned(self.stream)
         self.num_objects_ = readUnsigned(self.stream)
         self.num_clusters_ = readUnsigned(self.stream)
         self.initial_field_table_len = readUnsigned(self.stream)
         self.instructions_table_len = readUnsigned(self.stream)
         self.instruction_table_data_offset = readUnsigned(self.stream)
-        # 99 1012 4 3324 old
-        # 16 53 78 81    old
+
+        # trace 1025 51549 308 572 7193 16
         print(self.num_base_objects_, self.num_objects_, self.num_clusters_,
               self.initial_field_table_len,
               self.instructions_table_len, self.instruction_table_data_offset)
-
-        for i in range(self.num_clusters_):
-            # count = readUnsigned(self.stream)
-            # print(count)
-            print('readCid', readCid(self.stream))
 
     def readClusterAlloc(self, isCanonical):
         cid = readCid(self.stream)
