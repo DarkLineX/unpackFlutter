@@ -12,7 +12,6 @@ kMaxUint32 = 0xFFFFFFFF
 
 def read(stream, endByteMarker):
     b = readByte(stream)
-    print(b, kMaxUnsignedDataPerByte)
     r = 0
     s = 0
     if b > kMaxUnsignedDataPerByte:
