@@ -1,4 +1,4 @@
-from dart_runtime.StreamUtil import readString
+from dart_runtime.datastream import readString
 
 kVersionSize = int(128 / 4)
 kMessageFeaturesSize = int(1024 / 4)
@@ -10,5 +10,4 @@ def ReadVersion(stream):
 
 def ReadFeatures(stream):
     s, i = readString(stream)
-    print('read size ', i)
     return s
