@@ -10,35 +10,37 @@ kEndUnsignedByteMarker = (255 - kMaxUnsignedDataPerByte)
 kMaxUint32 = 0xFFFFFFFF
 
 
-def read(stream, endByteMarker):
-    b = readByte(stream)
+def read(stream, endByteMarker, maxLoops=-1):
+    b = int.from_bytes(stream.read(1), 'big', signed=False)
     r = 0
     s = 0
-    if b > kMaxUnsignedDataPerByte:
-        return b - endByteMarker
     while b <= kMaxUnsignedDataPerByte:
         r |= b << s
         s += kDataBitsPerByte
-        b = readByte(stream)
+        x = stream.read(1)
+        b = int.from_bytes(x, 'big', signed=False)
+        maxLoops -= 1
     return r | ((b - endByteMarker) << s)
 
 
-def readUnsigned(stream):
-    return read(stream, kEndUnsignedByteMarker)
+def readUnsigned(stream, size=-7):
+    if size == 8:
+        return int.from_bytes(stream.read(1), 'big', signed=False)  # No marker
+    return read(stream, kEndUnsignedByteMarker, math.ceil(size / 7))
 
 
 def readInt(stream, size):
     if size == 8:
         return int.from_bytes(stream.read(1), 'big', signed=True)  # No marker
-    return read(stream, kEndByteMarker)
+    return read(stream, kEndByteMarker, math.ceil(size / 7))
 
 
 def readInt_64(stream):
-    return readInt(stream, 4)
+    return readInt(stream, 64)
 
 
 def readInt_32(stream, ):
-    return readInt(stream, 4)
+    return readInt(stream, 32)
 
 
 def readByte(stream):

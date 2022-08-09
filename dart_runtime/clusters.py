@@ -10,33 +10,40 @@ class Clusters:
         pass
 
 
-class InstanceDeserializationCluster:
-    def __init__(self, cid):
-        pass
-
-
-class TypedDataViewDeserializationCluster:
-    def __init__(self, cid):
-        pass
-
-
-class ExternalTypedDataDeserializationCluster:
-    def __init__(self, cid):
-        pass
-
-
-class TypedDataDeserializationCluster:
-    def __init__(self, cid, is_canonical):
-        pass
-
-
 #  -----------------------------------------
 
 
 class ClassDeserializationCluster:
-    def __init__(self, cid, stream):
+    def __init__(self, cid, deserializer):
         self.cid = cid
-        self.stream = stream
+        self.deserializer = deserializer
+
+
+class InstanceDeserializationCluster(ClassDeserializationCluster):
+    pass
+
+
+class TypedDataViewDeserializationCluster(ClassDeserializationCluster):
+    pass
+
+
+class ExternalTypedDataDeserializationCluster(ClassDeserializationCluster):
+    pass
+
+
+class TypedDataDeserializationCluster(ClassDeserializationCluster):
+    pass
+
+
+class CanonicalSetDeserializationCluster(ClassDeserializationCluster):
+    def BuildCanonicalSetFromLayout(self, start_index_, stop_index_):
+        # count = 8569 stop_index_ = 9595 start_index_ = 1026 first_element_ = 0
+        table_length = readUnsigned(self.deserializer.stream)
+        first_element_ = readUnsigned(self.deserializer.stream)
+        count = stop_index_ - (start_index_ + first_element_)
+        print(count, stop_index_, start_index_, first_element_, table_length)
+        for _ in range(start_index_ + first_element_,stop_index_):
+            readUnsigned(self.deserializer.stream)
 
 
 class TypeParametersDeserializationCluster(ClassDeserializationCluster):
@@ -47,18 +54,28 @@ class TypeArgumentsDeserializationCluster(ClassDeserializationCluster):
     pass
 
 
-class StringDeserializationCluster(ClassDeserializationCluster):
+class StringDeserializationCluster(CanonicalSetDeserializationCluster):
     def readAlloc(self, is_canonical):
-        count = readUnsigned(self.stream)
+        # 229
+        start_index_ = self.deserializer.next_index()
+        count = readUnsigned(self.deserializer.stream)
+        # 231
+        # 8569
         for _ in range(count):
-            readUnsigned(self.stream)
+            readUnsigned(self.deserializer.stream)
+            self.deserializer.next_ref_index_ = self.deserializer.next_ref_index_ + 1
+        # 8974
+        stop_index_ = self.deserializer.next_index()
+
+        self.BuildCanonicalSetFromLayout(start_index_, stop_index_)
 
 
 class MintDeserializationCluster(ClassDeserializationCluster):
+    # %ld",stream_.Position()
     def readAlloc(self, is_canonical):
-        count = readUnsigned(self.stream)
+        count = readUnsigned(self.deserializer.stream)
         for _ in range(count):
-            readInt_64(self.stream)
+            readInt_64(self.deserializer.stream)
 
 
 class PatchClassDeserializationCluster(ClassDeserializationCluster):
@@ -206,7 +223,8 @@ class ArrayDeserializationCluster(ClassDeserializationCluster):
 
 
 class NoneCluster(ClassDeserializationCluster):
-    pass
+    def readAlloc(self, is_canonical):
+        pass
 
 
 # kStringCid = 89
@@ -217,142 +235,145 @@ class NoneCluster(ClassDeserializationCluster):
 
 class ClusterGetter:
 
-    def __init__(self, cid, stream):
+    def __init__(self, cid, deserializer):
         self.cid = cid
-        self.stream = stream
+        self.deserializer = deserializer
 
     def getCluster(self):
         if self.cid == kClassCid:
-            return ClassDeserializationCluster(self.cid, self.stream)
+            return ClassDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kTypeParametersCid:
-            return TypeParametersDeserializationCluster(self.cid, self.stream)
+            return TypeParametersDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kTypeArgumentsCid:
-            return TypeArgumentsDeserializationCluster(self.cid, self.stream)
+            return TypeArgumentsDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kPatchClassCid:
-            return PatchClassDeserializationCluster(self.cid, self.stream)
+            return PatchClassDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kFunctionCid:
-            return FunctionDeserializationCluster(self.cid, self.stream)
+            return FunctionDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kClosureDataCid:
-            return ClosureDataDeserializationCluster(self.cid, self.stream)
+            return ClosureDataDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kFfiTrampolineDataCid:
-            return FfiTrampolineDataDeserializationCluster(self.cid, self.stream)
+            return FfiTrampolineDataDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kFieldCid:
-            return FieldDeserializationCluster(self.cid, self.stream)
+            return FieldDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kScriptCid:
-            return ScriptDeserializationCluster(self.cid, self.stream)
+            return ScriptDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kLibraryCid:
-            return LibraryDeserializationCluster(self.cid, self.stream)
+            return LibraryDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kNamespaceCid:
-            return NamespaceDeserializationCluster(self.cid, self.stream)
+            return NamespaceDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kKernelProgramInfoCid:
-            return KernelProgramInfoDeserializationCluster(self.cid, self.stream)
+            return KernelProgramInfoDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kCodeCid:
-            return CodeDeserializationCluster(self.cid, self.stream)
+            return CodeDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kObjectPoolCid:
-            return ObjectPoolDeserializationCluster(self.cid, self.stream)
+            return ObjectPoolDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kPcDescriptorsCid:
-            return PcDescriptorsDeserializationCluster(self.cid, self.stream)
+            return PcDescriptorsDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kCodeSourceMapCid:
-            return CodeSourceMapDeserializationCluster(self.cid, self.stream)
+            return CodeSourceMapDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kCompressedStackMapsCid:
-            return CompressedStackMapsDeserializationCluster(self.cid, self.stream)
+            return CompressedStackMapsDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kExceptionHandlersCid:
-            return ExceptionHandlersDeserializationCluster(self.cid, self.stream)
+            return ExceptionHandlersDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kContextCid:
-            return ContextDeserializationCluster(self.cid, self.stream)
+            return ContextDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kContextScopeCid:
-            return ContextScopeDeserializationCluster(self.cid, self.stream)
+            return ContextScopeDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kUnlinkedCallCid:
-            return UnlinkedCallDeserializationCluster(self.cid, self.stream)
+            return UnlinkedCallDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kMegamorphicCacheCid:
-            return MegamorphicCacheDeserializationCluster(self.cid, self.stream)
+            return MegamorphicCacheDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kContextScopeCid:
-            return ContextScopeDeserializationCluster(self.cid, self.stream)
+            return ContextScopeDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kSubtypeTestCacheCid:
-            return SubtypeTestCacheDeserializationCluster(self.cid, self.stream)
+            return SubtypeTestCacheDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kLoadingUnitCid:
-            return LoadingUnitDeserializationCluster(self.cid, self.stream)
+            return LoadingUnitDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kUnhandledExceptionCid:
-            return UnhandledExceptionDeserializationCluster(self.cid, self.stream)
+            return UnhandledExceptionDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kLibraryPrefixCid:
-            return LibraryPrefixDeserializationCluster(self.cid, self.stream)
+            return LibraryPrefixDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kTypeCid:
-            return TypeDeserializationCluster(self.cid, self.stream)
+            return TypeDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kFunctionTypeCid:
-            return FunctionTypeDeserializationCluster(self.cid, self.stream)
+            return FunctionTypeDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kTypeRefCid:
-            return TypeRefDeserializationCluster(self.cid, self.stream)
+            return TypeRefDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kTypeParameterCid:
-            return TypeParameterDeserializationCluster(self.cid, self.stream)
+            return TypeParameterDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kClosureCid:
-            return ClosureDeserializationCluster(self.cid, self.stream)
+            return ClosureDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kMintCid:
-            return MintDeserializationCluster(self.cid, self.stream)
+            return MintDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kDoubleCid:
-            return DoubleDeserializationCluster(self.cid, self.stream)
+            return DoubleDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kGrowableObjectArrayCid:
-            return GrowableObjectArrayDeserializationCluster(self.cid, self.stream)
+            return GrowableObjectArrayDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kStackTraceCid:
-            return StackTraceDeserializationCluster(self.cid, self.stream)
+            return StackTraceDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kRegExpCid:
-            return RegExpDeserializationCluster(self.cid, self.stream)
+            return RegExpDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kWeakPropertyCid:
-            return WeakPropertyDeserializationCluster(self.cid, self.stream)
+            return WeakPropertyDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kLinkedHashMapCid:
-            return NoneCluster(self.cid, self.stream)
+            return NoneCluster(self.cid, self.deserializer)
 
         if self.cid == kImmutableLinkedHashMapCid:
-            return LinkedHashMapDeserializationCluster(self.cid, self.stream)
+            return LinkedHashMapDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kLinkedHashSetCid:
-            return NoneCluster(self.cid, self.stream)
+            return NoneCluster(self.cid, self.deserializer)
 
         if self.cid == kImmutableLinkedHashSetCid:
-            return LinkedHashSetDeserializationCluster(self.cid, self.stream)
+            return LinkedHashSetDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == FIXED_kArrayCid:
-            return ArrayDeserializationCluster(self.cid, self.stream)
+            return ArrayDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == FIXED_kImmutableArrayCid:
-            return ArrayDeserializationCluster(self.cid, self.stream)
+            return ArrayDeserializationCluster(self.cid, self.deserializer)
 
         if self.cid == kStringCid:
-            return StringDeserializationCluster(self.cid, self.stream)
+            return StringDeserializationCluster(self.cid, self.deserializer)
+
+        else:
+            return NoneCluster(self.cid, self.deserializer)
