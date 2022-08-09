@@ -34,6 +34,7 @@ Please configure Android SDK
 2022-08-08 20:46:48.663 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 38881
 2022-08-08 20:46:48.663 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  TypeArgumentsDeserializationCluster 1 kTypeArgumentsCid = 45 pos = 38881
 
+
 2022-08-08 20:46:48.663 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 39981
 2022-08-08 20:46:48.663 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  CodeDeserializationCluster 0 kCodeCid = 17 pos = 39981
 
@@ -42,18 +43,34 @@ Please configure Android SDK
 
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 47182
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  ClosureDeserializationCluster 1 kClosureCid = 55 pos = 47182
+
+
+
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 47185
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  InstanceDeserializationCluster 1 kInstanceCid = 43 pos = 47185
+
+
+
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 47190
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  FunctionTypeDeserializationCluster 1 kFunctionTypeCid = 52 pos = 47190
+
+
+
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 48095
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  LinkedHashMapDeserializationCluster 1 kImmutableLinkedHashMapCid = 83 pos = 48095
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 48098
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  LinkedHashSetDeserializationCluster 1 kImmutableLinkedHashSetCid = 85 pos = 48098
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 48101
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  ArrayDeserializationCluster 1 kImmutableArrayCid = 87 pos = 48101
+
+--------------以上验证成功
+
+
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 48374
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  InstanceDeserializationCluster 1 kInstanceCid = 194 pos = 48374
+
+
+
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 48379
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster()  InstanceDeserializationCluster 1 kInstanceCid = 197 pos = 48379
 2022-08-08 20:46:48.664 17721-17743/? E/DartVM: MiDuoKi Deserializer::ReadCluster() read cid 48384

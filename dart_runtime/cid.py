@@ -92,7 +92,7 @@ kUnhandledExceptionCid = 41
 kUnwindErrorCid = 42
 
 # CLASS_LIST_INSTANCE_SINGLETONS(Enum)
-kInstanceCid = 42
+kInstanceCid = 43
 kLibraryPrefixCid = 44
 kTypeArgumentsCid = 45
 kAbstractTypeCid = 46
