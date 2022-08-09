@@ -1,3 +1,4 @@
+from dart_runtime.app_snapshot import ReadAllocFixedSize
 from dart_runtime.cid import *
 from dart_runtime.datastream import readUnsigned, readInt, readInt_64
 
@@ -19,8 +20,15 @@ class ClassDeserializationCluster:
         self.deserializer = deserializer
 
 
-class InstanceDeserializationCluster(ClassDeserializationCluster):
+class AbstractInstanceDeserializationCluster(ClassDeserializationCluster):
     pass
+
+
+class InstanceDeserializationCluster(ClassDeserializationCluster):
+    def readAlloc(self, is_canonical):
+        count = readUnsigned(self.deserializer.stream)
+        for _ in range(count):
+            readUnsigned(self.deserializer.stream)
 
 
 class TypedDataViewDeserializationCluster(ClassDeserializationCluster):
@@ -42,7 +50,7 @@ class CanonicalSetDeserializationCluster(ClassDeserializationCluster):
         first_element_ = readUnsigned(self.deserializer.stream)
         count = stop_index_ - (start_index_ + first_element_)
         print(count, stop_index_, start_index_, first_element_, table_length)
-        for _ in range(start_index_ + first_element_,stop_index_):
+        for _ in range(start_index_ + first_element_, stop_index_):
             readUnsigned(self.deserializer.stream)
 
 
@@ -70,12 +78,24 @@ class StringDeserializationCluster(CanonicalSetDeserializationCluster):
         self.BuildCanonicalSetFromLayout(start_index_, stop_index_)
 
 
-class MintDeserializationCluster(ClassDeserializationCluster):
-    # %ld",stream_.Position()
+class MintDeserializationCluster(AbstractInstanceDeserializationCluster):
     def readAlloc(self, is_canonical):
         count = readUnsigned(self.deserializer.stream)
         for _ in range(count):
-            readInt_64(self.deserializer.stream)
+            readUnsigned(self.deserializer.stream)
+
+
+class DoubleDeserializationCluster(AbstractInstanceDeserializationCluster):
+    def readAlloc(self, is_canonical):
+        ReadAllocFixedSize(self.deserializer)
+
+
+class TypeParameterDeserializationCluster(CanonicalSetDeserializationCluster):
+    def readAlloc(self, is_canonical):
+        start_index_ = self.deserializer.next_index()
+        ReadAllocFixedSize(self.deserializer)
+        stop_index_ = self.deserializer.next_index()
+        self.BuildCanonicalSetFromLayout(start_index_, stop_index_);
 
 
 class PatchClassDeserializationCluster(ClassDeserializationCluster):
@@ -182,15 +202,7 @@ class TypeRefDeserializationCluster(ClassDeserializationCluster):
     pass
 
 
-class TypeParameterDeserializationCluster(ClassDeserializationCluster):
-    pass
-
-
 class ClosureDeserializationCluster(ClassDeserializationCluster):
-    pass
-
-
-class DoubleDeserializationCluster(ClassDeserializationCluster):
     pass
 
 

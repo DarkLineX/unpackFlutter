@@ -1,8 +1,10 @@
 from dart_runtime.cid import kNumPredefinedCids, kInstanceCid, IsTypedDataViewClassId, IsExternalTypedDataClassId, \
     IsTypedDataClassId
 from dart_runtime.clusters import Clusters, InstanceDeserializationCluster, TypedDataViewDeserializationCluster, \
-    ClassDeserializationCluster, TypedDataDeserializationCluster, ClusterGetter
+    ClassDeserializationCluster, TypedDataDeserializationCluster, ClusterGetter, NoneCluster
 from dart_runtime.datastream import readUnsigned, readInt, kMaxUint32, readInt_64
+
+kFirstReference = 1
 
 
 class Deserializer:
@@ -17,7 +19,7 @@ class Deserializer:
         self.unit_program_hash = None
         self.stream = stream
         self.cluster_list = []
-        self.next_ref_index_ = 1
+        self.next_ref_index_ = kFirstReference
 
     def deserialize(self):
         self.num_base_objects_ = readUnsigned(self.stream)
@@ -34,14 +36,12 @@ class Deserializer:
 
         self.addBaseObject()
 
-        cluster = self.readCluster()
-        self.cluster_list.append(cluster)
-        cluster.readAlloc(False)
-
-        # 17549
-        cluster = self.readCluster()
-        self.cluster_list.append(cluster)
-        cluster.readAlloc(False)
+        for _ in range(self.num_clusters_):
+            cluster = self.readCluster
+            self.cluster_list.append(cluster)
+            cluster.readAlloc(False)
+            if type(cluster) == NoneCluster:
+                break
 
     def addBaseObject(self):
         for _ in range(self.num_base_objects_):
@@ -50,11 +50,13 @@ class Deserializer:
     def next_index(self):
         return self.next_ref_index_
 
+    @property
     def readCluster(self):
-        print(self.stream.tell())
+        read_cid_before = self.stream.tell()
         cid_and_canonical = readInt_64(self.stream)
         cid = (cid_and_canonical >> 1) & kMaxUint32
-        print(self.stream.tell(), cid)
+        read_cid_after = self.stream.tell()
+        print('read_cid_before =',read_cid_before,'read_cid_after =',read_cid_after,'cid =',cid)
         is_canonical = (cid_and_canonical & 0x1) == 0x1
         # print("cid_and_canonical", cid_and_canonical, 'cid', cid, 'is_canonical', is_canonical)
         # 判断cid
