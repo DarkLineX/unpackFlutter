@@ -3,23 +3,24 @@ from enum import Enum
 
 def IsTypedDataViewClassId(index):
     is_byte_data_view = index == kByteDataViewCid
-
     return is_byte_data_view or (IsTypedDataBaseClassId(index) and ((index - kTypedDataInt8ArrayCid) % 3) == kTypedDataCidRemainderView)
 
+
 def IsTypedDataBaseClassId(index):
-    return index >= kTypedDataInt8ArrayCid and index < kByteDataViewCid;
+    return kTypedDataInt8ArrayCid <= index < kByteDataViewCid
 
 
-def IsExternalTypedDataClassId(cid):
-    return False
+def IsExternalTypedDataClassId(index):
+    return IsTypedDataBaseClassId(index) and ((index - kTypedDataInt8ArrayCid) % 3) == kTypedDataCidRemainderExternal
 
 
-def IsTypedDataClassId(cid):
-    return False
+def IsTypedDataClassId(index):
+    return IsTypedDataBaseClassId(index) and ((index - kTypedDataInt8ArrayCid) % 3) == kTypedDataCidRemainderInternal
 
 
-kNumPredefinedCids = 158
-kInstanceCid = 43
+kTypedDataCidRemainderInternal = 0
+kTypedDataCidRemainderView = 1
+kTypedDataCidRemainderExternal = 2
 
 # ClassId(Enum):
 kIllegalCid = 0  # x
@@ -29,13 +30,13 @@ kForwardingCorpseCid = 3  # x
 #  CLASS_LIST(DEFINE_OBJECT_KIND)    5 - 92
 #  CLASS_LIST_FFI(DEFINE_OBJECT_KIND) 93 - 108
 #  CLASS_LIST_TYPED_DATA(DEFINE_OBJECT_KIND) 110 - 123
-kByteDataViewCid = 123
-kByteBufferCid = 124
-kNullCid = 125
-kDynamicCid = 126
-kVoidCid = 127
-kNeverCid = 128
-kNumPredefinedCids = 129
+kByteDataViewCid = 152
+kByteBufferCid = 153
+kNullCid = 154
+kDynamicCid = 155
+kVoidCid = 156
+kNeverCid = 157
+kNumPredefinedCids = 158
 
 # CLASS_LIST(Enum):
 kObjectCid = 4
@@ -161,41 +162,41 @@ kExternalOneByteStringCid = 92
 kExternalTwoByteStringCid = 93
 
 # CLASS_LIST_FFI(Enum):
-FFI_kNativeFunctionCid = 93
+kFfiNativeFunctionCid = 93
 # CLASS_LIST_FFI_TYPE_MARKER(V) 94 - 106
-FFI_kNativeTypeCid = 107
-FFI_kStructCid = 108
+kFfiNativeTypeCid = 107
+kFfiStructCid = 108
 
 # CLASS_LIST_FFI_TYPE_MARKER(Enum):
 # CLASS_LIST_FFI_NUMERIC_FIXED_SIZE(V) 94 - 103
-FFI_kVoidCid = 104
-FFI_kHandleCid = 105
-FFI_kBoolCid = 106
+kFfiVoidCid = 104
+kFfiHandleCid = 105
+kFfiBoolCid = 106
 
 # CLASS_LIST_FFI_NUMERIC_FIXED_SIZE(Enum):
-FFI_kInt8Cid = 94
-FFI_kInt16Cid = 95
-FFI_kInt32Cid = 96
-FFI_kInt64Cid = 97
-FFI_kUint8Cid = 98
-FFI_kUint16Cid = 99
-FFI_kUint32Cid = 100
-FFI_kUint64Cid = 101
-FFI_kFloatCid = 102
-FFI_kDoubleCid = 103
+kFfiInt8Cid = 94
+kFfiInt16Cid = 95
+kFfiInt32Cid = 96
+kFfiInt64Cid = 97
+kFfiUint8Cid = 98
+kFfiUint16Cid = 99
+kFfiUint32Cid = 100
+kFfiUint64Cid = 101
+kFfiFloatCid = 102
+kFfiDoubleCid = 103
 
 # CLASS_LIST_TYPED_DATA(Enum):
-TYPE_kInt8ArrayCid = 110
-TYPE_kUint8ArrayCid = 111
-TYPE_kUint8ClampedArrayCid = 112
-TYPE_kInt16ArrayCid = 113
-TYPE_kUint16ArrayCid = 114
-TYPE_kInt32ArrayCid = 115
-TYPE_kUint32ArrayCid = 116
-TYPE_kInt64ArrayCid = 117
-TYPE_kUint64ArrayCid = 118
-TYPE_kFloat32ArrayCid = 119
-TYPE_kFloat64ArrayCid = 120
-TYPE_kFloat32x4ArrayCid = 121
-TYPE_kInt32x4ArrayCid = 122
-TYPE_kFloat64x2ArrayCid = 123
+kTypedDataInt8ArrayCid = 110
+kTypedDataUint8ArrayCid = 111
+kTypedDataUint8ClampedArrayCid = 112
+kTypedDataInt16ArrayCid = 113
+kTypedDataUint16ArrayCid = 114
+kTypedDataInt32ArrayCid = 115
+kTypedDataUint32ArrayCid = 116
+kTypedDataInt64ArrayCid = 117
+kTypedDataUint64ArrayCid = 118
+kTypedDataFloat32ArrayCid = 119
+kTypedDataFloat64ArrayCid = 120
+kTypedDataFloat32x4ArrayCid = 121
+kTypedDataInt32x4ArrayCid = 122
+kTypedDataFloat64x2ArrayCid = 123

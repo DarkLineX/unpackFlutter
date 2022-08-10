@@ -1,7 +1,6 @@
 from dart_runtime.cid import kNumPredefinedCids, kInstanceCid, IsTypedDataViewClassId, IsExternalTypedDataClassId, \
     IsTypedDataClassId
-from dart_runtime.clusters import Clusters, InstanceDeserializationCluster, TypedDataViewDeserializationCluster, \
-    ClassDeserializationCluster, TypedDataDeserializationCluster, ClusterGetter, NoneCluster
+from dart_runtime.clusters import *
 from dart_runtime.datastream import readUnsigned, readInt, kMaxUint32, readInt_64
 
 kFirstReference = 1
@@ -39,7 +38,7 @@ class Deserializer:
         for _ in range(self.num_clusters_):
             cluster = self.readCluster
             self.cluster_list.append(cluster)
-            cluster.readAlloc(False)
+            cluster.readAlloc()
             if type(cluster) == NoneCluster:
                 break
 
@@ -55,20 +54,12 @@ class Deserializer:
         read_cid_before = self.stream.tell()
         cid_and_canonical = readInt_64(self.stream)
         cid = (cid_and_canonical >> 1) & kMaxUint32
-        read_cid_after = self.stream.tell()
-        print('read_cid_before =',read_cid_before,'read_cid_after =',read_cid_after,'cid =',cid)
         is_canonical = (cid_and_canonical & 0x1) == 0x1
+
+        read_cid_after = self.stream.tell()
+        print('read_cid_before =',read_cid_before,'read_cid_after =',read_cid_after,'cid =',cid,'is_canonical',is_canonical)
         # print("cid_and_canonical", cid_and_canonical, 'cid', cid, 'is_canonical', is_canonical)
-        # 判断cid
-        if cid >= kNumPredefinedCids and cid == kInstanceCid:
-            return InstanceDeserializationCluster(cid, is_canonical)
-        if IsTypedDataViewClassId(cid):
-            return TypedDataViewDeserializationCluster(cid)
-        if IsExternalTypedDataClassId(cid):
-            return ClassDeserializationCluster(cid)
-        if IsTypedDataClassId(cid):
-            return TypedDataDeserializationCluster(cid)
         ###
-        cluster = ClusterGetter(cid, self).getCluster()
+        cluster = ClusterGetter(cid, is_canonical,self).getCluster()
         print(cluster, cid)
         return cluster
