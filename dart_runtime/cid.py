@@ -1,8 +1,13 @@
 from enum import Enum
 
 
-def IsTypedDataViewClassId(cid):
-    return False
+def IsTypedDataViewClassId(index):
+    is_byte_data_view = index == kByteDataViewCid
+
+    return is_byte_data_view or (IsTypedDataBaseClassId(index) and ((index - kTypedDataInt8ArrayCid) % 3) == kTypedDataCidRemainderView)
+
+def IsTypedDataBaseClassId(index):
+    return index >= kTypedDataInt8ArrayCid and index < kByteDataViewCid;
 
 
 def IsExternalTypedDataClassId(cid):

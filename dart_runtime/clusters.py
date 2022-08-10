@@ -19,6 +19,12 @@ class ClassDeserializationCluster:
         self.cid = cid
         self.deserializer = deserializer
 
+    def readAlloc(self, is_canonical):
+        count = readUnsigned(self.deserializer.stream)
+        for _ in range(count):
+            readInt_32(self.deserializer.stream)
+        count = readUnsigned(self.deserializer.stream)
+
 
 class AbstractInstanceDeserializationCluster(ClassDeserializationCluster):
     pass
@@ -29,6 +35,18 @@ class InstanceDeserializationCluster(ClassDeserializationCluster):
         count = readUnsigned(self.deserializer.stream)
         next_field_offset_in_words_ = readUnsigned(self.deserializer.stream)
         instance_size_in_words_ = readUnsigned(self.deserializer.stream)
+
+
+class TypedDataViewSerializationCluster(ClassDeserializationCluster):
+    pass
+
+
+class ExternalTypedDataSerializationCluster(ClassDeserializationCluster):
+    pass
+
+
+class TypedDataSerializationCluster(ClassDeserializationCluster):
+    pass
 
 
 class TypedDataViewDeserializationCluster(ClassDeserializationCluster):
@@ -132,7 +150,8 @@ class CodeDeserializationCluster(ClassDeserializationCluster):
 
 
 class PatchClassDeserializationCluster(ClassDeserializationCluster):
-    pass
+    def readAlloc(self, is_canonical):
+        ReadAllocFixedSize(self.deserializer)
 
 
 class FunctionDeserializationCluster(ClassDeserializationCluster):
@@ -264,7 +283,7 @@ class LinkedHashSetDeserializationCluster(AbstractInstanceDeserializationCluster
 
 
 class ArrayDeserializationCluster(ClassDeserializationCluster):
-    def readAlloc(self,is_canonical):
+    def readAlloc(self, is_canonical):
         count = readUnsigned(self.deserializer.stream)
         for _ in range(count):
             readUnsigned(self.deserializer.stream)
@@ -426,8 +445,22 @@ class ClusterGetter:
         if self.cid == kStringCid:
             return StringDeserializationCluster(self.cid, self.deserializer)
 
+        if self.cid > 10000:
+            return NoneCluster(self.cid, self.deserializer)
+
         if self.cid > kNumPredefinedCids or self.cid == kInstanceCid:
             return InstanceDeserializationCluster(self.cid, self.deserializer)
+
+        if IsTypedDataViewClassId(self.cid):
+            return TypedDataViewSerializationCluster(self.cid, self.deserializer)
+
+        if IsExternalTypedDataClassId(self.cid):
+            return ExternalTypedDataSerializationCluster(self.cid, self.deserializer)
+
+        if IsTypedDataClassId(self.cid):
+            return TypedDataSerializationCluster(self.cid, self.deserializer)
+
+
 
         else:
             return NoneCluster(self.cid, self.deserializer)
