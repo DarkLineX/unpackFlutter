@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f7125301-fa53-4330-b057-b85d579a4684" name="Changes" comment="-- class_id 分析">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/res/xq.png" beforeDir="false" />
-    </list>
+    <list default="true" id="f7125301-fa53-4330-b057-b85d579a4684" name="Changes" comment="-- class_id 分析" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
