@@ -18,3 +18,11 @@ def ReadVersion(stream):
 def ReadFeatures(stream):
     s, i = readString(stream)
     return s
+
+
+class FullSnapshotReader:
+    def ReadVMSnapshot(self):
+        pass
+
+    def ReadProgramSnapshot(self):
+        pass

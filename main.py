@@ -45,10 +45,11 @@ def parse_elf_file(file_path):
                 snapshot['offsets'] = aot_symbol.st_value
                 Snapshots[AOTSymbolsName] = snapshot
 
-    vm_snapshot_data = Snapshots['_kDartVmSnapshotData']
-    isolate_snapshot_data = Snapshots['_kDartIsolateSnapshotData']
+    # vm_snapshot_data = Snapshots['_kDartVmSnapshotData']
+    # vm roots 加载的是基本类 没必要解析 核心的还是看 isolate
+    # vm_snapshot_ = Snapshot(vm_snapshot_data['blob']).SnapshotSetupFromBuffer()
 
-    #vm_snapshot_ = Snapshot(vm_snapshot_data['blob']).SnapshotSetupFromBuffer()
+    isolate_snapshot_data = Snapshots['_kDartIsolateSnapshotData']
     isolate_snapshot_ = Snapshot(isolate_snapshot_data['blob']).SnapshotSetupFromBuffer()
 
 

@@ -39,8 +39,11 @@ class Deserializer:
             cluster = self.readCluster
             self.cluster_list.append(cluster)
             cluster.readAlloc()
-            if type(cluster) == NoneCluster:
-                break
+
+        for _ in range(self.num_clusters_):
+            cluster = self.cluster_list[_]
+            self.cluster_list.append(cluster)
+            cluster.readFill()
 
     def addBaseObject(self):
         for _ in range(self.num_base_objects_):
@@ -57,9 +60,10 @@ class Deserializer:
         is_canonical = (cid_and_canonical & 0x1) == 0x1
 
         read_cid_after = self.stream.tell()
-        print('read_cid_before =',read_cid_before,'read_cid_after =',read_cid_after,'cid =',cid,'is_canonical',is_canonical)
+        print('read_cid_before =', read_cid_before, 'read_cid_after =', read_cid_after, 'cid =', cid, 'is_canonical',
+              is_canonical)
         # print("cid_and_canonical", cid_and_canonical, 'cid', cid, 'is_canonical', is_canonical)
         ###
-        cluster = ClusterGetter(cid, is_canonical,self).getCluster()
+        cluster = ClusterGetter(cid, is_canonical, self).getCluster()
         print(cluster, cid)
         return cluster

@@ -4,10 +4,12 @@ from dart_runtime.datastream import readUnsigned, readInt, readInt_64, readInt_3
 
 
 class DeserializationCluster:
-    def __init__(self, cid,is_canonical, deserializer):
+    def __init__(self, cid, is_canonical, deserializer):
         self.cid = cid
         self.is_canonical = is_canonical
         self.deserializer = deserializer
+        self.start_index_ = 0
+        self.stop_index_ = 0
 
 
 class ClassDeserializationCluster(DeserializationCluster):
@@ -52,14 +54,14 @@ class TypedDataDeserializationCluster(DeserializationCluster):
 
 
 class CanonicalSetDeserializationCluster(DeserializationCluster):
-    def BuildCanonicalSetFromLayout(self, start_index_, stop_index_):
+    def BuildCanonicalSetFromLayout(self):
         if self.is_canonical:
             # count = 8569 stop_index_ = 9595 start_index_ = 1026 first_element_ = 0
             table_length = readUnsigned(self.deserializer.stream)
             first_element_ = readUnsigned(self.deserializer.stream)
-            count = stop_index_ - (start_index_ + first_element_)
-            print(count, stop_index_, start_index_, first_element_, table_length)
-            for _ in range(start_index_ + first_element_, stop_index_):
+            count = self.stop_index_ - (self.start_index_ + first_element_)
+            print(count, self.stop_index_, self.start_index_, first_element_, table_length)
+            for _ in range(self.start_index_ + first_element_, self.stop_index_):
                 readUnsigned(self.deserializer.stream)
 
 
@@ -71,7 +73,7 @@ class TypeParametersDeserializationCluster(ClassDeserializationCluster):
 class TypeArgumentsDeserializationCluster(CanonicalSetDeserializationCluster):
     def readAlloc(self):
         # 229
-        start_index_ = self.deserializer.next_index()
+        self.start_index_ = self.deserializer.next_index()
         count = readUnsigned(self.deserializer.stream)
         # 231
         # 8569
@@ -79,25 +81,44 @@ class TypeArgumentsDeserializationCluster(CanonicalSetDeserializationCluster):
             readUnsigned(self.deserializer.stream)
             self.deserializer.next_ref_index_ = self.deserializer.next_ref_index_ + 1
         # 8974
-        stop_index_ = self.deserializer.next_index()
+        self.stop_index_ = self.deserializer.next_index()
 
-        self.BuildCanonicalSetFromLayout(start_index_, stop_index_)
+        self.BuildCanonicalSetFromLayout()
 
 
 class StringDeserializationCluster(CanonicalSetDeserializationCluster):
+
+    @staticmethod
+    def DecodeLengthAndCid(encoded):
+        cid = kTwoByteStringCid if (encoded & 0x1) else kOneByteStringCid
+        length = encoded >> 1
+        return length, cid
+
     def readAlloc(self):
         # 229
-        start_index_ = self.deserializer.next_index()
+        self.start_index_ = self.deserializer.next_index()
         count = readUnsigned(self.deserializer.stream)
         # 231
         # 8569
         for _ in range(count):
-            readUnsigned(self.deserializer.stream)
+            encoded = readUnsigned(self.deserializer.stream)
             self.deserializer.next_ref_index_ = self.deserializer.next_ref_index_ + 1
         # 8974
-        stop_index_ = self.deserializer.next_index()
+        self.stop_index_ = self.deserializer.next_index()
+        self.BuildCanonicalSetFromLayout()
 
-        self.BuildCanonicalSetFromLayout(start_index_, stop_index_)
+    def readFill(self):
+        for _ in range(self.start_index_, self.stop_index_):
+            encoded = readUnsigned(self.deserializer.stream)
+            length, cid = self.DecodeLengthAndCid(encoded)
+            if cid == kOneByteStringCid:
+                for _ in range(length):
+                    code_unit = readInt(self.deserializer.stream,8)
+            else:
+                for _ in range(length):
+                    code_unit = readInt(self.deserializer.stream,8)
+                    code_unit_2 = readInt(self.deserializer.stream,8)
+                    code_unit = (code_unit | code_unit_2 << 8)
 
 
 class DoubleDeserializationCluster(AbstractInstanceDeserializationCluster):
@@ -107,18 +128,18 @@ class DoubleDeserializationCluster(AbstractInstanceDeserializationCluster):
 
 class TypeParameterDeserializationCluster(CanonicalSetDeserializationCluster):
     def readAlloc(self):
-        start_index_ = self.deserializer.next_index()
+        self.start_index_ = self.deserializer.next_index()
         ReadAllocFixedSize(self.deserializer)
-        stop_index_ = self.deserializer.next_index()
-        self.BuildCanonicalSetFromLayout(start_index_, stop_index_)
+        self.stop_index_ = self.deserializer.next_index()
+        self.BuildCanonicalSetFromLayout()
 
 
 class TypeDeserializationCluster(CanonicalSetDeserializationCluster):
     def readAlloc(self):
-        start_index_ = self.deserializer.next_index()
+        self.start_index_ = self.deserializer.next_index()
         ReadAllocFixedSize(self.deserializer)
-        stop_index_ = self.deserializer.next_index()
-        self.BuildCanonicalSetFromLayout(start_index_, stop_index_)
+        self.stop_index_ = self.deserializer.next_index()
+        self.BuildCanonicalSetFromLayout()
 
 
 class MintDeserializationCluster(AbstractInstanceDeserializationCluster):
@@ -153,10 +174,10 @@ class FunctionDeserializationCluster(ClassDeserializationCluster):
 
 class FunctionTypeDeserializationCluster(CanonicalSetDeserializationCluster):
     def readAlloc(self):
-        start_index_ = self.deserializer.next_index()
+        self.start_index_ = self.deserializer.next_index()
         ReadAllocFixedSize(self.deserializer)
-        stop_index_ = self.deserializer.next_index()
-        self.BuildCanonicalSetFromLayout(start_index_, stop_index_)
+        self.stop_index_ = self.deserializer.next_index()
+        self.BuildCanonicalSetFromLayout()
 
 
 class ClosureDataDeserializationCluster(DeserializationCluster):
@@ -324,156 +345,156 @@ class ClusterGetter:
     def getCluster(self):
 
         if self.cid > 10000:
-            return NoneCluster(self.cid, self.is_canonical,self.deserializer)
+            return NoneCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid > kNumPredefinedCids or self.cid == kInstanceCid:
-            return InstanceDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return InstanceDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if IsTypedDataViewClassId(self.cid):
-            return TypedDataViewDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return TypedDataViewDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if IsExternalTypedDataClassId(self.cid):
-            return ExternalTypedDataDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ExternalTypedDataDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if IsTypedDataClassId(self.cid):
-            return TypedDataDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return TypedDataDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kClassCid:
-            return ClassDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ClassDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kTypeParametersCid:
-            return TypeParametersDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return TypeParametersDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kTypeArgumentsCid:
-            return TypeArgumentsDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return TypeArgumentsDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kPatchClassCid:
-            return PatchClassDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return PatchClassDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kFunctionCid:
-            return FunctionDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return FunctionDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kClosureDataCid:
-            return ClosureDataDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ClosureDataDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kFfiTrampolineDataCid:
-            return FfiTrampolineDataDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return FfiTrampolineDataDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kFieldCid:
-            return FieldDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return FieldDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kScriptCid:
-            return ScriptDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ScriptDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kLibraryCid:
-            return LibraryDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return LibraryDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kNamespaceCid:
-            return NamespaceDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return NamespaceDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kKernelProgramInfoCid:
-            return KernelProgramInfoDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return KernelProgramInfoDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kCodeCid:
-            return CodeDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return CodeDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kObjectPoolCid:
-            return ObjectPoolDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ObjectPoolDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kPcDescriptorsCid:
-            return PcDescriptorsDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return PcDescriptorsDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kCodeSourceMapCid:
-            return CodeSourceMapDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return CodeSourceMapDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kCompressedStackMapsCid:
-            return CompressedStackMapsDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return CompressedStackMapsDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kExceptionHandlersCid:
-            return ExceptionHandlersDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ExceptionHandlersDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kContextCid:
-            return ContextDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ContextDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kContextScopeCid:
-            return ContextScopeDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ContextScopeDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kUnlinkedCallCid:
-            return UnlinkedCallDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return UnlinkedCallDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kMegamorphicCacheCid:
-            return MegamorphicCacheDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return MegamorphicCacheDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kContextScopeCid:
-            return ContextScopeDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ContextScopeDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kSubtypeTestCacheCid:
-            return SubtypeTestCacheDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return SubtypeTestCacheDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kLoadingUnitCid:
-            return LoadingUnitDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return LoadingUnitDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kUnhandledExceptionCid:
-            return UnhandledExceptionDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return UnhandledExceptionDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kLibraryPrefixCid:
-            return LibraryPrefixDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return LibraryPrefixDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kTypeCid:
-            return TypeDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return TypeDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kFunctionTypeCid:
-            return FunctionTypeDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return FunctionTypeDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kTypeRefCid:
-            return TypeRefDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return TypeRefDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kTypeParameterCid:
-            return TypeParameterDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return TypeParameterDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kClosureCid:
-            return ClosureDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ClosureDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kMintCid:
-            return MintDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return MintDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kDoubleCid:
-            return DoubleDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return DoubleDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kGrowableObjectArrayCid:
-            return GrowableObjectArrayDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return GrowableObjectArrayDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kStackTraceCid:
-            return StackTraceDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return StackTraceDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kRegExpCid:
-            return RegExpDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return RegExpDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kWeakPropertyCid:
-            return WeakPropertyDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return WeakPropertyDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kLinkedHashMapCid:
-            return NoneCluster(self.cid, self.is_canonical,self.deserializer)
+            return NoneCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kImmutableLinkedHashMapCid:
-            return LinkedHashMapDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return LinkedHashMapDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kLinkedHashSetCid:
-            return NoneCluster(self.cid, self.is_canonical,self.deserializer)
+            return NoneCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kImmutableLinkedHashSetCid:
-            return LinkedHashSetDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return LinkedHashSetDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == FIXED_kArrayCid:
-            return ArrayDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ArrayDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == FIXED_kImmutableArrayCid:
-            return ArrayDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return ArrayDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid == kStringCid:
-            return StringDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return StringDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
 
         if self.cid >= 94 and self <= 108:
-            return InstanceDeserializationCluster(self.cid, self.is_canonical,self.deserializer)
+            return InstanceDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
         else:
-            return NoneCluster(self.cid, self.is_canonical,self.deserializer)
+            return NoneCluster(self.cid, self.is_canonical, self.deserializer)
