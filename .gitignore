@@ -1,3 +1,4 @@
 .idea
 .dart_runtime
 *.pyc
+*.xml
