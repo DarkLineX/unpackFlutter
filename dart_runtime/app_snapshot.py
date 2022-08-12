@@ -4,11 +4,7 @@ kVersionSize = int(128 / 4)
 kMessageFeaturesSize = int(1024 / 4)
 
 
-def ReadAllocFixedSize(deserializer):
-    start_index_ = deserializer.next_index()
-    count = readUnsigned(deserializer.stream)
-    for _ in range(count):
-        deserializer.next_ref_index_ = deserializer.next_ref_index_+1
+
 
 
 def ReadVersion(stream):
@@ -26,3 +22,7 @@ class FullSnapshotReader:
 
     def ReadProgramSnapshot(self):
         pass
+
+
+def ReadFromTo(deserializer):
+    p = readUnsigned(deserializer.stream)
