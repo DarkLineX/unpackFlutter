@@ -43,6 +43,10 @@ def readInt_32(stream, ):
     return readInt(stream, 32)
 
 
+def readInt_8(stream, ):
+    return readInt(stream, 8)
+
+
 def readByte(stream):
     return int.from_bytes(stream.read(1), 'big', signed=False)
 

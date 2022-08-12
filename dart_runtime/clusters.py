@@ -1,6 +1,6 @@
 from dart_runtime.app_snapshot import ReadFromTo
 from dart_runtime.cid import *
-from dart_runtime.datastream import readUnsigned, readInt, readInt_64, readInt_32
+from dart_runtime.datastream import readUnsigned, readInt, readInt_64, readInt_32, readInt_8
 
 kNullabilityBitSize = 2
 kNullabilityBitMask = (1 << kNullabilityBitSize) - 1
@@ -161,10 +161,11 @@ class TypeParameterDeserializationCluster(CanonicalSetDeserializationCluster):
         for _ in range(self.start_index_, self.stop_index_):
             # 在 num_objects_ 里面取一个出来
             typeParameter = {}
+            ReadFromTo(self.deserializer)
             parameterized_class_id_ = readInt_32(self.deserializer.stream)
-            base_ = readUnsigned(self.deserializer.stream)
-            index_ = readUnsigned(self.deserializer.stream)
-            combined = readUnsigned(self.deserializer.stream)
+            base_ = readInt_8(self.deserializer.stream)
+            index_ = readInt_8(self.deserializer.stream)
+            combined = readInt_8(self.deserializer.stream)
             flags_ = combined >> kNullabilityBitSize
             nullability_ = combined & kNullabilityBitMask
 

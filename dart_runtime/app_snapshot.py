@@ -25,4 +25,6 @@ class FullSnapshotReader:
 
 
 def ReadFromTo(deserializer):
-    p = readUnsigned(deserializer.stream)
+    for _ in range(3):
+        p = readUnsigned(deserializer.stream)
+
