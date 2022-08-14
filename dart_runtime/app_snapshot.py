@@ -8,10 +8,12 @@ def ReadRef(stream):
     return ReadUnsigned(stream)
 
 
-def ReadInstructions(deserializer):
-    deserializer.stream.read(1)
+def ReadInstructions(stream):
+    return stream.read(1)
 
 
+def ReadCid(stream):
+    return ReadInt_32(stream)
 
 
 def ReadVersion(stream):
