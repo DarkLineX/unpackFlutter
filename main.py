@@ -5,7 +5,6 @@ from io import BytesIO
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 
-
 kVersionSize = int(128 / 4)
 kMessageFeaturesSize = int(1024 / 4)
 
@@ -14,7 +13,7 @@ def ReadAllocFixedSize(deserializer):
     start_index_ = deserializer.next_index()
     count = readUnsigned(deserializer.stream)
     for _ in range(count):
-        deserializer.next_ref_index_ = deserializer.next_ref_index_+1
+        deserializer.next_ref_index_ = deserializer.next_ref_index_ + 1
 
 
 def ReadVersion(stream):
@@ -34,13 +33,14 @@ class FullSnapshotReader:
         pass
 
 
-AOTSymbolsNameList= [
+AOTSymbolsNameList = [
     '_kDartVmSnapshotData',
     '_kDartVmSnapshotInstructions',
     '_kDartIsolateSnapshotData',
     '_kDartIsolateSnapshotInstructions',
     # '_kDartSnapshotBuildId'
 ]
+
 
 class DartClass:
     def __init__(self):
@@ -55,6 +55,7 @@ class DartFunction:
     def __init__(self):
         self.func_name = 'getInfo'
         self.code_offset = '0x000000ff'
+
 
 kFirstReference = 1
 
@@ -124,7 +125,8 @@ class Deserializer:
 
 def IsTypedDataViewClassId(index):
     is_byte_data_view = index == kByteDataViewCid
-    return is_byte_data_view or (IsTypedDataBaseClassId(index) and ((index - kTypedDataInt8ArrayCid) % 3) == kTypedDataCidRemainderView)
+    return is_byte_data_view or (
+                IsTypedDataBaseClassId(index) and ((index - kTypedDataInt8ArrayCid) % 3) == kTypedDataCidRemainderView)
 
 
 def IsTypedDataBaseClassId(index):
@@ -322,7 +324,6 @@ kTypedDataFloat32x4ArrayCid = 121
 kTypedDataInt32x4ArrayCid = 122
 kTypedDataFloat64x2ArrayCid = 123
 
-
 kDataBitsPerByte = 7
 kByteMask = (1 << kDataBitsPerByte) - 1
 kMaxUnsignedDataPerByte = kByteMask
@@ -498,11 +499,11 @@ class StringDeserializationCluster(CanonicalSetDeserializationCluster):
             length, cid = self.DecodeLengthAndCid(encoded)
             if cid == kOneByteStringCid:
                 for _ in range(length):
-                    code_unit = readInt(self.deserializer.stream,8)
+                    code_unit = readInt(self.deserializer.stream, 8)
             else:
                 for _ in range(length):
-                    code_unit = readInt(self.deserializer.stream,8)
-                    code_unit_2 = readInt(self.deserializer.stream,8)
+                    code_unit = readInt(self.deserializer.stream, 8)
+                    code_unit_2 = readInt(self.deserializer.stream, 8)
                     code_unit = (code_unit | code_unit_2 << 8)
 
 
@@ -950,6 +951,7 @@ class Snapshot:
     def kind(self):
         kind = Kind(int.from_bytes(self.stream.read(kKindSize), 'little'))
         return kind
+
 
 def get_AOTSymbols(sections):
     tables = []
