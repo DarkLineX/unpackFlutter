@@ -8,9 +8,10 @@ kMaxDataPerByte = (~kMinDataPerByte & kByteMask)
 kEndByteMarker = (255 - kMaxDataPerByte)
 kEndUnsignedByteMarker = (255 - kMaxUnsignedDataPerByte)
 kMaxUint32 = 0xFFFFFFFF
+kNumRead32PerWord = 2
 
 
-def read(stream, endByteMarker, maxLoops=-1):
+def Read(stream, endByteMarker, maxLoops=-1):
     b = int.from_bytes(stream.read(1), 'big', signed=False)
     r = 0
     s = 0
@@ -23,35 +24,51 @@ def read(stream, endByteMarker, maxLoops=-1):
     return r | ((b - endByteMarker) << s)
 
 
-def readUnsigned(stream, size=-7):
+def ReadUnsigned(stream, size=-7):
     if size == 8:
-        return int.from_bytes(stream.read(1), 'big', signed=False)  # No marker
-    return read(stream, kEndUnsignedByteMarker, math.ceil(size / 7))
+        return int.from_bytes(stream.Read(1), 'big', signed=False)  # No marker
+    return Read(stream, kEndUnsignedByteMarker, math.ceil(size / 7))
 
 
-def readInt(stream, size):
+def ReadUnsigned64(stream):
+    return ReadUnsigned(stream, 64)
+
+
+def ReadInt(stream, size):
     if size == 8:
         return int.from_bytes(stream.read(1), 'big', signed=True)  # No marker
-    return read(stream, kEndByteMarker, math.ceil(size / 7))
+    return Read(stream, kEndByteMarker, math.ceil(size / 7))
 
 
-def readInt_64(stream):
-    return readInt(stream, 64)
+def ReadInt_64(stream):
+    return ReadInt(stream, 64)
 
 
-def readInt_32(stream, ):
-    return readInt(stream, 32)
+def ReadInt_16(stream, ):
+    return ReadInt(stream, 16)
 
 
-def readInt_8(stream, ):
-    return readInt(stream, 8)
+def ReadInt_32(stream, ):
+    return ReadInt(stream, 32)
 
 
-def readByte(stream):
-    return int.from_bytes(stream.read(1), 'big', signed=False)
+def ReadInt_8(stream, ):
+    return ReadInt(stream, 8)
 
 
-def readString(stream):
+def ReadByte(stream):
+    return int.from_bytes(stream.Read(1), 'big', signed=False)
+
+
+def ReadWordWith32BitReads(stream):
+    value = 0
+    for j in range(kNumRead32PerWord):
+        partialValue = ReadUnsigned(stream, 32)
+        value |= partialValue << (j * 32)
+    return value
+
+
+def ReadString(stream):
     res = b''
     i = 1
     b = stream.read(1)

@@ -1,16 +1,15 @@
-from dart_runtime.datastream import readString, readUnsigned, readInt_32
+from dart_runtime.datastream import ReadString, ReadUnsigned,ReadInt_32
 
 kVersionSize = int(128 / 4)
 kMessageFeaturesSize = int(1024 / 4)
 
 
 def ReadRef(stream):
-    return readUnsigned(stream)
+    return ReadUnsigned(stream)
 
 
 def ReadInstructions(deserializer):
-    image_reader_ = readInt_32(deserializer.stream)
-    unchecked_offset = readUnsigned(deserializer.stream)
+    deserializer.stream.read(1)
 
 
 
@@ -20,7 +19,7 @@ def ReadVersion(stream):
 
 
 def ReadFeatures(stream):
-    s, i = readString(stream)
+    s, i = ReadString(stream)
     return s
 
 
@@ -32,6 +31,6 @@ class FullSnapshotReader:
         pass
 
 
-def ReadFromTo(deserializer):
-    for _ in range(3):
-        p = readUnsigned(deserializer.stream)
+def ReadFromTo(deserializer,size):
+    for _ in range(size):
+        p = ReadUnsigned(deserializer.stream)

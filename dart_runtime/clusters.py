@@ -1,7 +1,10 @@
 from dart_runtime.app_snapshot import ReadFromTo, ReadInstructions, ReadRef
 from dart_runtime.cid import *
-from dart_runtime.datastream import readUnsigned, readInt, readInt_64, readInt_32, readInt_8
+from dart_runtime.class_table import UnboxedFieldBitmap
+from dart_runtime.datastream import *
+from dart_runtime.globals import kCompressedWordSizeLog2, kCompressedWordSize
 from dart_runtime.kind import Kind
+from dart_runtime.object import RoundedAllocationSize
 
 kNullabilityBitSize = 2
 kNullabilityBitMask = (1 << kNullabilityBitSize) - 1
@@ -17,7 +20,7 @@ class DeserializationCluster:
 
     def ReadAllocFixedSize(self):
         self.start_index_ = self.deserializer.next_index()
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
             self.deserializer.next_ref_index_ = self.deserializer.next_ref_index_ + 1
         self.stop_index_ = self.deserializer.next_index()
@@ -25,10 +28,10 @@ class DeserializationCluster:
 
 class ClassDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            readInt_32(self.deserializer.stream)
-        count = readUnsigned(self.deserializer.stream)
+            ReadInt_32(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
 
 
 class AbstractInstanceDeserializationCluster(DeserializationCluster):
@@ -36,10 +39,46 @@ class AbstractInstanceDeserializationCluster(DeserializationCluster):
 
 
 class InstanceDeserializationCluster(ClassDeserializationCluster):
+    def __init__(self, cid, is_canonical, deserializer):
+        super().__init__(cid, is_canonical, deserializer)
+        self.next_field_offset_in_words_ = None
+        self.instance_size_in_words_ = None
+        self.instance_size = None
+
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
-        next_field_offset_in_words_ = readUnsigned(self.deserializer.stream)
-        instance_size_in_words_ = readUnsigned(self.deserializer.stream)
+        self.start_index_ = self.deserializer.next_index()
+
+        count = ReadUnsigned(self.deserializer.stream)
+
+        self.next_field_offset_in_words_ = ReadInt_32(self.deserializer.stream)
+        self.instance_size_in_words_ = ReadInt_32(self.deserializer.stream)
+        self.instance_size = RoundedAllocationSize(self.instance_size_in_words_ * kCompressedWordSize)
+        for i in range(count):
+            self.deserializer.next_ref_index_ = self.deserializer.next_ref_index_ + 1
+
+        self.stop_index_ = self.deserializer.next_index()
+
+    def ReadFill(self):
+        # 478413 478414
+        in_pos = self.deserializer.stream.tell()
+
+        unboxed_fields_bitmap = UnboxedFieldBitmap(ReadUnsigned64(self.deserializer.stream))
+        for _ in range(self.start_index_, self.stop_index_):
+            next_field_offset = self.next_field_offset_in_words_ << kCompressedWordSizeLog2
+            offset = 8  # ARM64 8 ARM32 4
+            while offset < next_field_offset:
+                if unboxed_fields_bitmap.Get(int(offset / kCompressedWordSize)):
+                    ReadWordWith32BitReads(self.deserializer.stream)
+                else:
+                    ReadRef(self.deserializer.stream)
+                offset += kCompressedWordSize
+
+            while offset < self.instance_size:
+                offset += kCompressedWordSize
+
+        out_pos = self.deserializer.stream.tell()
+        print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
+              self.stop_index_)
 
 
 class TypedDataViewSerializationCluster:     pass
@@ -59,21 +98,21 @@ class ExternalTypedDataDeserializationCluster:     pass
 
 class TypedDataDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            length = readUnsigned(self.deserializer.stream)
+            length = ReadUnsigned(self.deserializer.stream)
 
 
 class CanonicalSetDeserializationCluster(DeserializationCluster):
     def BuildCanonicalSetFromLayout(self):
         if self.is_canonical:
             # count = 8569 stop_index_ = 9595 start_index_ = 1026 first_element_ = 0
-            table_length = readUnsigned(self.deserializer.stream)
-            first_element_ = readUnsigned(self.deserializer.stream)
+            table_length = ReadUnsigned(self.deserializer.stream)
+            first_element_ = ReadUnsigned(self.deserializer.stream)
             count = self.stop_index_ - (self.start_index_ + first_element_)
             # print(count, self.stop_index_, self.start_index_, first_element_, table_length)
             for _ in range(self.start_index_ + first_element_, self.stop_index_):
-                readUnsigned(self.deserializer.stream)
+                ReadUnsigned(self.deserializer.stream)
 
 
 class TypeParametersDeserializationCluster(ClassDeserializationCluster):
@@ -85,11 +124,11 @@ class TypeArgumentsDeserializationCluster(CanonicalSetDeserializationCluster):
     def ReadAlloc(self):
         # 229
         self.start_index_ = self.deserializer.next_index()
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         # 231
         # 8569
         for _ in range(count):
-            readUnsigned(self.deserializer.stream)
+            ReadUnsigned(self.deserializer.stream)
             self.deserializer.next_ref_index_ = self.deserializer.next_ref_index_ + 1
         # 8974
         self.stop_index_ = self.deserializer.next_index()
@@ -104,13 +143,13 @@ class TypeArgumentsDeserializationCluster(CanonicalSetDeserializationCluster):
         for _ in range(self.start_index_, self.stop_index_):
             # 在 num_objects_ 里面取一个出来
             typeParameter = {}
-            length = readUnsigned(self.deserializer.stream)
-            hash_ = readInt_32(self.deserializer.stream)
-            nullability_ = readUnsigned(self.deserializer.stream)
-            instantiations_ = readUnsigned(self.deserializer.stream)
+            length = ReadUnsigned(self.deserializer.stream)
+            hash_ = ReadInt_32(self.deserializer.stream)
+            nullability_ = ReadUnsigned(self.deserializer.stream)
+            instantiations_ = ReadUnsigned(self.deserializer.stream)
             types = []
             for _ in range(length):
-                types.append(readUnsigned(self.deserializer.stream))
+                types.append(ReadUnsigned(self.deserializer.stream))
 
         out_pos = self.deserializer.stream.tell()
         print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
@@ -128,11 +167,11 @@ class StringDeserializationCluster(CanonicalSetDeserializationCluster):
     def ReadAlloc(self):
         # 229
         self.start_index_ = self.deserializer.next_index()
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         # 231
         # 8569
         for _ in range(count):
-            encoded = readUnsigned(self.deserializer.stream)
+            encoded = ReadUnsigned(self.deserializer.stream)
             self.deserializer.next_ref_index_ = self.deserializer.next_ref_index_ + 1
         # 8974
         self.stop_index_ = self.deserializer.next_index()
@@ -143,15 +182,15 @@ class StringDeserializationCluster(CanonicalSetDeserializationCluster):
         # ReadFill out pos =  247023
         in_pos = self.deserializer.stream.tell()
         for _ in range(self.start_index_, self.stop_index_):
-            encoded = readUnsigned(self.deserializer.stream)
+            encoded = ReadUnsigned(self.deserializer.stream)
             length, cid = self.DecodeLengthAndCid(encoded)
             if cid == kOneByteStringCid:
                 for _ in range(length):
-                    code_unit = readInt(self.deserializer.stream, 8)
+                    code_unit = ReadInt(self.deserializer.stream, 8)
             else:
                 for _ in range(length):
-                    code_unit = readInt(self.deserializer.stream, 8)
-                    code_unit_2 = readInt(self.deserializer.stream, 8)
+                    code_unit = ReadInt(self.deserializer.stream, 8)
+                    code_unit_2 = ReadInt(self.deserializer.stream, 8)
                     code_unit = (code_unit | code_unit_2 << 8)
         out_pos = self.deserializer.stream.tell()
         print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos)
@@ -166,7 +205,7 @@ class DoubleDeserializationCluster(AbstractInstanceDeserializationCluster):
     def ReadFill(self):
         in_pos = self.deserializer.stream.tell()
         for _ in range(self.start_index_, self.stop_index_):
-            encoded = readUnsigned(self.deserializer.stream)
+            encoded = ReadUnsigned(self.deserializer.stream)
         out_pos = self.deserializer.stream.tell()
         print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos)
 
@@ -182,11 +221,11 @@ class TypeParameterDeserializationCluster(CanonicalSetDeserializationCluster):
         for _ in range(self.start_index_, self.stop_index_):
             # 在 num_objects_ 里面取一个出来
             typeParameter = {}
-            ReadFromTo(self.deserializer)
-            parameterized_class_id_ = readInt_32(self.deserializer.stream)
-            base_ = readInt_8(self.deserializer.stream)
-            index_ = readInt_8(self.deserializer.stream)
-            combined = readInt_8(self.deserializer.stream)
+            ReadFromTo(self.deserializer, 3)
+            parameterized_class_id_ = ReadInt_32(self.deserializer.stream)
+            base_ = ReadInt_8(self.deserializer.stream)
+            index_ = ReadInt_8(self.deserializer.stream)
+            combined = ReadInt_8(self.deserializer.stream)
             flags_ = combined >> kNullabilityBitSize
             nullability_ = combined & kNullabilityBitMask
 
@@ -208,9 +247,9 @@ class TypeDeserializationCluster(CanonicalSetDeserializationCluster):
         for _ in range(self.start_index_, self.stop_index_):
             # 在 num_objects_ 里面取一个出来
             typePtr = {}
-            ReadFromTo(self.deserializer)
-            type_class_id_ = readUnsigned(self.deserializer.stream)
-            combined = readInt_8(self.deserializer.stream)
+            ReadFromTo(self.deserializer, 3)
+            type_class_id_ = ReadUnsigned(self.deserializer.stream)
+            combined = ReadInt_8(self.deserializer.stream)
             type_state_ = combined >> kNullabilityBitSize
             nullability_ = combined & kNullabilityBitMask
 
@@ -221,9 +260,9 @@ class TypeDeserializationCluster(CanonicalSetDeserializationCluster):
 
 class MintDeserializationCluster(AbstractInstanceDeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            readUnsigned(self.deserializer.stream)
+            ReadUnsigned(self.deserializer.stream)
 
     def ReadFill(self):
         pass
@@ -239,7 +278,7 @@ class CodeDeserializationCluster(ClassDeserializationCluster):
     def ReadAlloc(self):
         self.start_index_ = self.deserializer.next_index()
 
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
             self.ReadAllocOneCode()
 
@@ -247,17 +286,15 @@ class CodeDeserializationCluster(ClassDeserializationCluster):
 
         self.deferred_start_index_ = self.deserializer.next_index()
 
-        deferred_count = readUnsigned(self.deserializer.stream)
+        deferred_count = ReadUnsigned(self.deserializer.stream)
         for _ in range(deferred_count):
             self.ReadAllocOneCode()
 
         self.deferred_stop_index_ = self.deserializer.next_index()
 
     def ReadAllocOneCode(self):
-        state_bits = readInt_32(self.deserializer.stream)
+        state_bits = ReadInt_32(self.deserializer.stream)
         self.deserializer.AssignRef()
-
-
 
     def ReadFill(self):
         # TypeParameterPtr 参数类型
@@ -277,9 +314,12 @@ class CodeDeserializationCluster(ClassDeserializationCluster):
 
         # 16927 24120
         # 12.7
-        print(self.stop_index_ - self.start_index_)
+        # print(self.stop_index_ - self.start_index_)
 
     def readFill2(self, int_id, deferred):
+
+        in_pos = self.deserializer.stream.tell()
+
         ReadInstructions(self.deserializer)
 
         if self.deserializer.kind is not Kind.FULL_AOT:
@@ -298,6 +338,10 @@ class CodeDeserializationCluster(ClassDeserializationCluster):
         inlined_id_to_function_ = ReadRef(self.deserializer.stream)
         code_source_map_ = ReadRef(self.deserializer.stream)
 
+        out_pos = self.deserializer.stream.tell()
+
+        # print(in_pos, out_pos, out_pos - in_pos)
+
 
 class PatchClassDeserializationCluster(ClassDeserializationCluster):
     def ReadAlloc(self):
@@ -308,6 +352,35 @@ class FunctionDeserializationCluster(ClassDeserializationCluster):
     def ReadAlloc(self):
         self.ReadAllocFixedSize()
 
+    def ReadFill(self):
+        # 364690 477989
+        # TypeParameterPtr 参数类型
+        in_pos = self.deserializer.stream.tell()
+        for _ in range(self.start_index_, self.stop_index_):
+            in_for = self.deserializer.stream.tell()
+            # 在 num_objects_ 里面取一个出来
+            func = {}
+            in_read_from = self.deserializer.stream.tell()
+            ReadFromTo(self.deserializer, 4)
+            out_read_from = self.deserializer.stream.tell()
+
+            if self.deserializer.kind == Kind.FULL_AOT:
+                code_index = ReadUnsigned(self.deserializer.stream)
+                code = None
+            elif self.deserializer.kind == Kind.FULL_JIT:
+                unoptimized_code_ = ReadRef(self.deserializer.stream)
+                code_ = ReadRef(self.deserializer.stream)
+                ic_data_array_ = ReadRef(self.deserializer.stream)
+            packed_fields_ = ReadInt_32(self.deserializer.stream)
+            kind_tag_ = ReadInt_32(self.deserializer.stream)
+
+            out_for = self.deserializer.stream.tell()
+            # print(in_for, out_for, out_for - in_for, in_read_from, out_read_from, out_read_from - in_read_from)
+
+        out_pos = self.deserializer.stream.tell()
+        print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
+              self.stop_index_)
+
 
 class FunctionTypeDeserializationCluster(CanonicalSetDeserializationCluster):
     def ReadAlloc(self):
@@ -315,6 +388,29 @@ class FunctionTypeDeserializationCluster(CanonicalSetDeserializationCluster):
         self.ReadAllocFixedSize()
         self.stop_index_ = self.deserializer.next_index()
         self.BuildCanonicalSetFromLayout()
+
+    def ReadFill(self):
+        # 478414 490686
+        # FunctionTypePtr 参数类型
+        in_pos = self.deserializer.stream.tell()
+        for _ in range(self.start_index_, self.stop_index_):
+            in_for = self.deserializer.stream.tell()
+            # 在 num_objects_ 里面取一个出来
+            type = {}
+            in_read_from = self.deserializer.stream.tell()
+            ReadFromTo(self.deserializer, 6)
+            out_read_from = self.deserializer.stream.tell()
+
+            combined = ReadInt_8(self.deserializer.stream)
+            packed_parameter_counts_ = ReadInt_32(self.deserializer.stream)
+            packed_type_parameter_counts_ = ReadInt_16(self.deserializer.stream)
+
+            out_for = self.deserializer.stream.tell()
+            # print(in_for, out_for, out_for - in_for, in_read_from, out_read_from, out_read_from - in_read_from)
+
+        out_pos = self.deserializer.stream.tell()
+        print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
+              self.stop_index_)
 
 
 class ClosureDataDeserializationCluster(DeserializationCluster):
@@ -352,23 +448,23 @@ class KernelProgramInfoDeserializationCluster:
 
 class ObjectPoolDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            length = readUnsigned(self.deserializer.stream)
+            length = ReadUnsigned(self.deserializer.stream)
 
 
 class PcDescriptorsDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            length = readUnsigned(self.deserializer.stream)
+            length = ReadUnsigned(self.deserializer.stream)
 
 
 class CodeSourceMapDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            length = readUnsigned(self.deserializer.stream)
+            length = ReadUnsigned(self.deserializer.stream)
 
 
 class CompressedStackMapsDeserializationCluster:
@@ -377,9 +473,9 @@ class CompressedStackMapsDeserializationCluster:
 
 class ExceptionHandlersDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            length = readUnsigned(self.deserializer.stream)
+            length = ReadUnsigned(self.deserializer.stream)
 
 
 class ContextDeserializationCluster:
@@ -426,6 +522,24 @@ class ClosureDeserializationCluster(AbstractInstanceDeserializationCluster):
     def ReadAlloc(self):
         self.ReadAllocFixedSize()
 
+    def ReadFill(self):
+        # 477989 478413
+        # TypeParameterPtr 参数类型
+        in_pos = self.deserializer.stream.tell()
+        for _ in range(self.start_index_, self.stop_index_):
+            in_for = self.deserializer.stream.tell()
+            # 在 num_objects_ 里面取一个出来
+            closure = {}
+            in_read_from = self.deserializer.stream.tell()
+            ReadFromTo(self.deserializer, 6)
+
+            out_for = self.deserializer.stream.tell()
+            # print(in_for, out_for, out_for - in_for, in_read_from, out_read_from, out_read_from - in_read_from)
+
+        out_pos = self.deserializer.stream.tell()
+        print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
+              self.stop_index_)
+
 
 class GrowableObjectArrayDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
@@ -448,17 +562,79 @@ class LinkedHashMapDeserializationCluster(AbstractInstanceDeserializationCluster
     def ReadAlloc(self):
         self.ReadAllocFixedSize()
 
+    def ReadFill(self):
+        # 490686 491250
+        # TypeParameterPtr 参数类型
+        in_pos = self.deserializer.stream.tell()
+        for _ in range(self.start_index_, self.stop_index_):
+            in_for = self.deserializer.stream.tell()
+            # 在 num_objects_ 里面取一个出来
+            map = {}
+            in_read_from = self.deserializer.stream.tell()
+            # untag_to_snapshot - untag_from
+
+            ReadFromTo(self.deserializer, 5)
+            out_read_from = self.deserializer.stream.tell()
+
+            out_for = self.deserializer.stream.tell()
+            # print(in_for, out_for, out_for - in_for, in_read_from, out_read_from, out_read_from - in_read_from)
+
+        out_pos = self.deserializer.stream.tell()
+        print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
+              self.stop_index_)
+
 
 class LinkedHashSetDeserializationCluster(AbstractInstanceDeserializationCluster):
     def ReadAlloc(self):
         self.ReadAllocFixedSize()
 
+    def ReadFill(self):
+        # 491250 491262
+        # TypeParameterPtr 参数类型
+        in_pos = self.deserializer.stream.tell()
+        for _ in range(self.start_index_, self.stop_index_):
+            in_for = self.deserializer.stream.tell()
+            # 在 num_objects_ 里面取一个出来
+            map = {}
+            in_read_from = self.deserializer.stream.tell()
+            # untag_to_snapshot - untag_from
+
+            ReadFromTo(self.deserializer, 5)
+            out_read_from = self.deserializer.stream.tell()
+
+            out_for = self.deserializer.stream.tell()
+            # print(in_for, out_for, out_for - in_for, in_read_from, out_read_from, out_read_from - in_read_from)
+
+        out_pos = self.deserializer.stream.tell()
+        print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
+              self.stop_index_)
+
 
 class ArrayDeserializationCluster(ClassDeserializationCluster):
     def ReadAlloc(self):
-        count = readUnsigned(self.deserializer.stream)
+        self.start_index_ = self.deserializer.next_index()
+        count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
-            readUnsigned(self.deserializer.stream)
+            ReadUnsigned(self.deserializer.stream)
+        self.stop_index_ = self.deserializer.next_index()
+
+    def ReadFill(self):
+        # 491262 514072
+        # TypeParameterPtr 参数类型
+        in_pos = self.deserializer.stream.tell()
+        for _ in range(self.start_index_, self.stop_index_):
+            in_for = self.deserializer.stream.tell()
+            # 在 num_objects_ 里面取一个出来
+            array = {}
+            length = ReadUnsigned(self.deserializer.stream)
+            type_arguments_ = ReadRef(self.deserializer.stream)
+            for i in range(length):
+                data = ReadRef(self.deserializer.stream)
+            out_for = self.deserializer.stream.tell()
+
+        out_pos = self.deserializer.stream.tell()
+        print(self.__class__.__name__, 'ReadFill in pos = ', in_pos, 'out pos =', out_pos, self.start_index_,
+              self.stop_index_)
 
 
 class NoneCluster(ClassDeserializationCluster):

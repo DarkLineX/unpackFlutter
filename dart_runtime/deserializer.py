@@ -1,7 +1,7 @@
 from dart_runtime.cid import kNumPredefinedCids, kInstanceCid, IsTypedDataViewClassId, IsExternalTypedDataClassId, \
     IsTypedDataClassId
 from dart_runtime.clusters import *
-from dart_runtime.datastream import readUnsigned, readInt, kMaxUint32, readInt_64
+from dart_runtime.datastream import *
 
 kFirstReference = 1
 
@@ -22,12 +22,12 @@ class Deserializer:
         self.next_ref_index_ = kFirstReference
 
     def deserialize(self):
-        self.num_base_objects_ = readUnsigned(self.stream)
-        self.num_objects_ = readUnsigned(self.stream)
-        self.num_clusters_ = readUnsigned(self.stream)
-        self.initial_field_table_len = readUnsigned(self.stream)
-        self.instructions_table_len = readUnsigned(self.stream)
-        self.instruction_table_data_offset = readUnsigned(self.stream)
+        self.num_base_objects_ = ReadUnsigned(self.stream)
+        self.num_objects_ = ReadUnsigned(self.stream)
+        self.num_clusters_ = ReadUnsigned(self.stream)
+        self.initial_field_table_len = ReadUnsigned(self.stream)
+        self.instructions_table_len = ReadUnsigned(self.stream)
+        self.instruction_table_data_offset = ReadUnsigned(self.stream)
 
         # trace 1025 51549 308 572 7193 16
         # print(self.num_base_objects_, self.num_objects_, self.num_clusters_,self.initial_field_table_len,self.instructions_table_len, self.instruction_table_data_offset)
@@ -57,7 +57,7 @@ class Deserializer:
     @property
     def readCluster(self):
         read_cid_before = self.stream.tell()
-        cid_and_canonical = readInt_64(self.stream)
+        cid_and_canonical = ReadInt_64(self.stream)
         cid = (cid_and_canonical >> 1) & kMaxUint32
         is_canonical = (cid_and_canonical & 0x1) == 0x1
 
