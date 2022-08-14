@@ -7,7 +7,7 @@ kFirstReference = 1
 
 
 class Deserializer:
-    def __init__(self, stream):
+    def __init__(self, stream, kind):
         self.clusters = None
         self.num_base_objects_ = None
         self.num_objects_ = None
@@ -18,6 +18,7 @@ class Deserializer:
         self.unit_program_hash = None
         self.stream = stream
         self.cluster_list = []
+        self.kind = kind
         self.next_ref_index_ = kFirstReference
 
     def deserialize(self):
@@ -31,19 +32,22 @@ class Deserializer:
         # trace 1025 51549 308 572 7193 16
         # print(self.num_base_objects_, self.num_objects_, self.num_clusters_,self.initial_field_table_len,self.instructions_table_len, self.instruction_table_data_offset)
 
-        self.addBaseObject()
+        self.AddBaseObject()
 
         for _ in range(self.num_clusters_):
             cluster = self.readCluster
             self.cluster_list.append(cluster)
-            cluster.readAlloc()
+            cluster.ReadAlloc()
 
         for _ in range(self.num_clusters_):
             cluster = self.cluster_list[_]
             self.cluster_list.append(cluster)
-            cluster.readFill()
+            cluster.ReadFill()
 
-    def addBaseObject(self):
+    def AssignRef(self):
+        self.next_ref_index_ = self.next_ref_index_ + 1
+
+    def AddBaseObject(self):
         for _ in range(self.num_base_objects_):
             self.next_ref_index_ = self.next_ref_index_ + 1
 
