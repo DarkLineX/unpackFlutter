@@ -10,6 +10,11 @@
 
 在分支里面选择对应的 flutter engine hash 版本的快照解析器
 
+使用二进制文本编辑工具查看快照 version hash
+
+- [flutter_3.0.4_engine_hash_6ba2af10bb05c88a2731482cedf2cfd11cf5af0b](https://github.com/MiDuoKi/unpackFlutter/tree/flutter_3.0.4_engine_hash_6ba2af10bb05c88a2731482cedf2cfd11cf5af0b)
+
+
 libapp.so 放到 res 目录下即可
 
 下面是解析效果展示
