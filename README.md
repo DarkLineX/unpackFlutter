@@ -19,8 +19,72 @@ libapp.so 放到 res 目录下即可
 
 下面是解析效果展示
 
-![](png1.png)
+```
+class MyApp{
+  build(){
+ _kDartIsolateSnapshotInstructions + 0x134bc4 
+}
+}
+class UnFind{
+  runApp(){
+ _kDartIsolateSnapshotInstructions + 0xdfb28 
+}
+}
+class WidgetsFlutterBinding{
+  ensureInitialized(){
+ _kDartIsolateSnapshotInstructions + 0xdfb84 
+}
+}
+class WhereIterable{
+  get:iterator(){
+ _kDartIsolateSnapshotInstructions + 0x17b7b8 
+}
+  map(){
+ _kDartIsolateSnapshotInstructions + 0xe919c 
+}
+}
+class _BoxEdge@396082469{
+  compareTo(){
+ _kDartIsolateSnapshotInstructions + 0x17ca64 
+}
+}
+class _SemanticsDiagnosticableNode@396082469{
+}
+class SemanticsHintOverrides{
+}
+class _SemanticsFragment@364266271{
+}
+class PipelineOwner{
+  PipelineOwner.(){
+ _kDartIsolateSnapshotInstructions + 0xd6a28 
+}
+  requestVisualUpdate(){
+ _kDartIsolateSnapshotInstructions + 0x63d7c 
+}
+  set:rootNode(){
+ _kDartIsolateSnapshotInstructions + 0x63bcc 
+}
+  flushLayout(){
+ _kDartIsolateSnapshotInstructions + 0xdad40 
+}
+  flushCompositingBits(){
+ _kDartIsolateSnapshotInstructions + 0xda90c 
+}
+  flushPaint(){
+ _kDartIsolateSnapshotInstructions + 0xda614 
+}
+  ensureSemantics(){
+ _kDartIsolateSnapshotInstructions + 0xd5160 
+}
+  _didDisposeSemanticsHandle@364266271(){
+ _kDartIsolateSnapshotInstructions + 0xd4fc8 
+}
+  flushSemantics(){
+ _kDartIsolateSnapshotInstructions + 0xda154 
+}
+}
 
+```
 
 ### 开发笔记和心得
 
