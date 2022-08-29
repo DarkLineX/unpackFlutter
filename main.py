@@ -1,29 +1,26 @@
-from io import BytesIO
-
-from elftools.elf.elffile import ELFFile
-from elftools.elf.sections import SymbolTableSection
-from enum import Enum
-
 kVersionSize = int(128 / 4)
 kMessageFeaturesSize = int(1024 / 4)
 
 FLAG_precompiled_mode = True
 
+kDispatchTableRecentCount = 64
+kDispatchTableMaxRepeat = 63
 
-def ReadTokenPosition(stream):
-    return ReadInt_32(stream)
+kDispatchTableIndexBase = 64
+kPolymorphicEntryOffsetAOT = 20
+kMonomorphicEntryOffsetAOT = 8
+
+first_entry_with_code = 0
+
+kMaxObjectAlignment = 16
+kMagicSize = 4
 
 
-def ReadRef(stream):
-    return ReadUnsigned(stream)
-
-
-def ReadInstructions(stream):
-    return stream.read(1)
-
-
-def ReadCid(stream):
-    return ReadInt_32(stream)
+# DataImage = 0x738f11fee0 addr = 0x738f044790  offset = 898896 length() = 898882 kMaxObjectAlignment 16
+def DataImage(le):
+    offset = Utils.RoundUp(le, kMaxObjectAlignment)
+    # print('offset', offset, 'length()', le, 'kMaxObjectAlignment', kMaxObjectAlignment)
+    return offset
 
 
 def ReadVersion(stream):
@@ -59,23 +56,120 @@ def ReadFromTo(stream, size):
         p = ReadRef(stream)
 
 
-# TODO GetCodeByIndex
-def GetCodeByIndex(deserializer,code_index, entry_point):
-    if code_index == 0:
-        return 0
-    if FLAG_precompiled_mode:
-        return GetCodeAndEntryPointByIndex(deserializer,code_index, entry_point)
+def ReadTokenPosition(stream):
+    return ReadInt_32(stream)
+
+
+def ReadRef(stream):
+    return ReadUnsigned(stream)
+
+
+def ReadCid(stream):
+    return ReadInt_32(stream)
+
+
+# TODO 需要fix验证
+def ReadInstructions(deserializer, codePtr, deferred):
+    if deferred:
+        pass
     else:
-        return 0
+        if DART_PRECOMPILED_RUNTIME:
+            payload_start = InstructionsTablePtr.EntryPointAt(first_entry_with_code + deserializer.instructions_index_, deserializer.instruction_table_data,deserializer.data_buffer, deserializer.instructions_buffer)
+            s = deserializer.stream.tell()
+            payload_info = ReadUnsigned(deserializer.stream)
+            s1 = deserializer.stream.tell()
+            unchecked_offset = payload_info >> 1
+            has_monomorphic_entrypoint = (payload_info & 0x1) == 0x1
+            if has_monomorphic_entrypoint:
+                entry_offset = kPolymorphicEntryOffsetAOT
+                monomorphic_entry_offset = kMonomorphicEntryOffsetAOT
+            else:
+                entry_offset = 0
+                monomorphic_entry_offset = 0
+            entry_point = payload_start + entry_offset
+            monomorphic_entry_point = payload_start + monomorphic_entry_offset
+
+            deserializer.instructions_index_ = deserializer.instructions_index_ + 1
+
+            codePtr.untag.field['instructions_'] = None
+            codePtr.untag.field['entry_point_'] = entry_point
+            codePtr.untag.field['unchecked_entry_point_'] = entry_point + unchecked_offset
+            codePtr.untag.field['monomorphic_entry_point_'] = monomorphic_entry_point
+            codePtr.untag.field['monomorphic_unchecked_entry_point_'] = monomorphic_entry_point + unchecked_offset
+        else:
+            pass
 
 
-def GetCodeAndEntryPointByIndex(deserializer,code_index, entry_point):
+def GetCodeByIndex(deserializer, code_index, need_entry_point_for_non_discarded=False):
+    if code_index == 0:
+        return None, 0
+    if FLAG_precompiled_mode:
+        return GetCodeAndEntryPointByIndex(deserializer, code_index, need_entry_point_for_non_discarded)
+    else:
+        refId = deserializer.code_start_index_ + code_index - 1
+        codePtr = deserializer.references[refId]
+        return codePtr, 0
+
+
+def GetEntryPointByCodeIndex(deserializer, code_index):
+    code, value = GetCodeAndEntryPointByIndex(deserializer, code_index, need_entry_point_for_non_discarded=True)
+    return value
+
+
+def GetCodeAndEntryPointByIndex(deserializer, code_index, need_entry_point_for_non_discarded=False):
+    # print('code_index', code_index)
+    entry_point = 0
     code_index = code_index - 1
-    base = deserializer.num_base_objects_
+    first_entry_with_code = 0
+    base = 0
     if code_index < base:
-        codePtr = CodePtr(code_index)
-    return None
+        pass
+    code_index = code_index - base
+    if code_index < first_entry_with_code:
+        pass
+    else:
+        cluster_index = code_index - first_entry_with_code
+        refId = deserializer.code_start_index + cluster_index
+        codePtr = deserializer.references[refId]
+        # print(refId, hex(codePtr.untag.field['entry_point_']))
+        entry_point = 0
+        if need_entry_point_for_non_discarded:
+            entry_point = codePtr.untag.field['entry_point_']
+    return codePtr, entry_point
 
+
+def ReadDispatchTable(deserializer):
+    s = deserializer.stream.tell()
+    length = ReadUnsigned(deserializer.stream)
+    if length == 0:
+        return
+    else:
+        s1 = deserializer.stream.tell()
+        first_code_id = ReadUnsigned(deserializer.stream)
+        deferred_code_start_index = - 1 - first_code_id
+        deferred_code_end_index = - 1 - first_code_id
+        # print(first_code_id, s1, deferred_code_start_index, deferred_code_end_index)
+        recent_index = 0
+        value = 0
+        repeat_count = 0
+
+        for i in range(length):
+            if repeat_count > 0:
+                repeat_count = repeat_count - 1
+                continue
+            s3 = deserializer.stream.tell()
+            encoded = ReadInt_64(deserializer.stream)
+            s3_ = deserializer.stream.tell()
+            code_index = encoded - kDispatchTableIndexBase
+            if encoded == 0:
+                pass
+            elif encoded < 0:
+                r = ~encoded
+            elif encoded <= kDispatchTableMaxRepeat:
+                repeat_count = encoded - 1
+            else:
+                value = GetEntryPointByCodeIndex(deserializer, code_index)
+                # print(value)
 class BitField:
     def __init__(self):
         # BitField<uint8_t, EntryType, 0, 7>;
@@ -84,7 +178,6 @@ class BitField:
     @staticmethod
     def decode(value):
         return value & 0x7f
-
 from enum import Enum
 
 
@@ -298,7 +391,6 @@ kTypedDataInt32x4ArrayCid = 122
 kTypedDataFloat64x2ArrayCid = 123
 
 kLastInternalOnlyCid = kUnwindErrorCid
-
 kTopLevelCidOffset = (1 << 16)
 
 
@@ -731,6 +823,8 @@ class CodeDeserializationCluster(DeserializationCluster):
     def ReadAlloc(self):
         self.start_index_ = self.deserializer.next_index()
 
+        self.deserializer.code_start_index = self.start_index_
+
         count = ReadUnsigned(self.deserializer.stream)
         for _ in range(count):
             self.ReadAllocOneCode()
@@ -769,7 +863,7 @@ class CodeDeserializationCluster(DeserializationCluster):
 
         codePtr = CodePtr(refId)
 
-        ReadInstructions(self.deserializer.stream)
+        ReadInstructions(self.deserializer, codePtr, deferred)
 
         if self.deserializer.kind is not Kind.FULL_AOT:
             codePtr.untag.field['object_pool_'] = ReadRef(self.deserializer.stream)
@@ -824,18 +918,25 @@ class FunctionDeserializationCluster(DeserializationCluster):
             in_for = self.deserializer.stream.tell()
 
             func = FunctionPtr(refId)
-            in_read_from = self.deserializer.stream.tell()
             self._ReadFromTo(func)
-            out_read_from = self.deserializer.stream.tell()
 
             if self.deserializer.kind == Kind.FULL_AOT:
+
+                in_read_from = self.deserializer.stream.tell()
                 code_index = ReadUnsigned(self.deserializer.stream)
+                out_read_from = self.deserializer.stream.tell()
+
+                # print('code_index',code_index,'code_index_1',in_read_from,'code_index_2',out_read_from)
+
+                # code, entry_point = GetCodeByIndex(self.deserializer, code_index)
                 entry_point = 0
-                code = GetCodeByIndex(self.deserializer,code_index, entry_point)
-                func.untag.field['code_'] = code
-                if not entry_point == 0:
-                    func.untag.field['entry_point_'] = entry_point
-                    func.untag.field['unchecked_entry_point_'] = entry_point
+                if code_index < self.deserializer.instructions_table_len:
+                    entry_point = hex(self.deserializer.instruction_table_data[code_index].pc_offset)
+
+                # func.untag.field['code_'] = code
+                # if not entry_point == 0:
+                func.untag.field['entry_point_'] = entry_point
+                func.untag.field['unchecked_entry_point_'] = entry_point
 
             elif self.deserializer.kind == Kind.FULL_JIT:
                 # TODO JIT
@@ -1534,9 +1635,7 @@ class ClusterGetter:
             return InstanceDeserializationCluster(self.cid, self.is_canonical, self.deserializer)
         else:
             return NoneCluster(self.cid, self.is_canonical, self.deserializer)
-
-
-AOTSymbolsNameList= [
+AOTSymbolsNameList = [
     '_kDartVmSnapshotData',
     '_kDartVmSnapshotInstructions',
     '_kDartIsolateSnapshotData',
@@ -1544,7 +1643,7 @@ AOTSymbolsNameList= [
     # '_kDartSnapshotBuildId'
 ]
 
-
+ro_data = []
 # 映射实体的Dart Class
 class DartClass:
     def __init__(self, deserializer, clazz):
@@ -1580,10 +1679,11 @@ class DartFunction:
         if obj1:
             self.func_name = ''.join(chr(x) for x in (obj1.untag.field['data']))
 
-    def __str__(self):
-        s = '  ' + self.func_name + "(){}\n"
-        return s
+        self.code_offset = func.untag.field['entry_point_']
 
+    def __str__(self):
+        s = '  ' + self.func_name + "(){\n _kDartIsolateSnapshotInstructions + " + str(self.code_offset) + " \n}\n"
+        return s
 kCachedDescriptorCount = 32
 
 import math
@@ -1600,15 +1700,16 @@ kNumRead32PerWord = 2
 
 
 def Read(stream, endByteMarker, maxLoops=-1):
-    b = int.from_bytes(stream.read(1), 'big', signed=False)
+    b = ReadByte(stream)
+    if b > kMaxUnsignedDataPerByte:
+        return b - endByteMarker
     r = 0
     s = 0
     while b <= kMaxUnsignedDataPerByte:
         r |= b << s
         s += kDataBitsPerByte
-        x = stream.read(1)
-        b = int.from_bytes(x, 'big', signed=False)
-        maxLoops -= 1
+        b = ReadByte(stream)
+        maxLoops = maxLoops - 1
     return r | ((b - endByteMarker) << s)
 
 
@@ -1616,6 +1717,10 @@ def ReadUnsigned(stream, size=-7):
     if size == 8:
         return int.from_bytes(stream.read(1), 'big', signed=False)  # No marker
     return Read(stream, kEndUnsignedByteMarker, math.ceil(size / 7))
+
+
+def Read_intptr_t(stream):
+    return ReadInt_64(stream)
 
 
 def ReadUnInt_32(stream):
@@ -1657,7 +1762,7 @@ def ReadInt_8(stream):
 
 
 def ReadByte(stream):
-    return stream.read(1)
+    return int.from_bytes(stream.read(1), 'big', signed=False)
 
 
 def ReadBytes(stream, size):
@@ -1683,9 +1788,8 @@ def ReadString(stream):
     return res, i
 
 
-
-
 kFirstReference = 1
+kUntaggedObjectFormTo = 193
 
 
 # ReadProgramSnapshot ProgramDeserializationRoots
@@ -1699,7 +1803,12 @@ class ProgramDeserializationRoots:
 
 
 class Deserializer:
-    def __init__(self, stream, kind, features):
+    def __init__(self, stream, large_length, kind, features, data_buffer, instructions_buffer):
+        self.instruction_table_data = None
+        self.large_length = large_length
+        self.image_reader_ = None
+        self.data_buffer = data_buffer
+        self.instructions_buffer = instructions_buffer
         self.code = None
         self.symbol_table_ = None
         self.isProduct = None
@@ -1713,6 +1822,10 @@ class Deserializer:
         self.unit_program_hash = None
         self.stream = stream
         self.cluster_list = []
+        self.code_start_index = 0
+        self.code_stop_index = 0
+        self.instructions_index_ = 0
+
         self.classes = {}
         self.next_ref_index_ = kFirstReference
         # 记录所有的引用 首先是baseObject 1025 个
@@ -1736,14 +1849,33 @@ class Deserializer:
         self.instructions_table_len = ReadUnsigned(self.stream)
         self.instruction_table_data_offset = ReadUnsigned(self.stream)
 
-        print('num_base_objects_ = ', self.num_base_objects_, 'num_objects_ = ', self.num_objects_, self.num_clusters_)
-        # print('num_base_objects_ = ', self.num_base_objects_, 'num_objects_ = ', self.num_objects_, self.num_clusters_,
-        #       self.initial_field_table_len, self.instructions_table_len, self.instruction_table_data_offset)
+        # print('num_base_objects_ = ', self.num_base_objects_, 'num_objects_ = ', self.num_objects_,
+        # self.num_clusters_)
+        print('num_base_objects_ = ', self.num_base_objects_, 'num_objects_ = ', self.num_objects_, self.num_clusters_,
+              self.initial_field_table_len, 'instructions_table_len', self.instructions_table_len,
+              'instruction_table_data_offset', self.instruction_table_data_offset)
 
         # trace 1025 51549 308 572 7193 16 print(self.num_base_objects_, self.num_objects_, self.num_clusters_,
         # self.initial_field_table_len,self.instructions_table_len, self.instruction_table_data_offset)
 
+        # if DART_PRECOMPILED_RUNTIME:
+        #     if self.instructions_table_len > 0:
+        #         start_pc = 0
+        #         end_pc = 0
+        #         instruction_table_data = 0
+        #         if self.instruction_table_data_offset != 0:
+        #             pass
+
+        self.image_reader_ = ImageReader(DataImage(self.large_length), self.instructions_buffer)
+        self.instruction_table_data = []
+        # dump ro_data index from frida
+        for i in range(self.instructions_table_len):
+            self.instruction_table_data.append(UntaggedInstructionsTable_DataEntry(ro_data[i]))
+
         self.AddBaseObjects()
+
+        # 4360105126801541136
+        # 496321556224
 
         if self.num_base_objects_ != (self.next_ref_index_ - kFirstReference):
             raise Exception('init baseObject fail')
@@ -1753,7 +1885,7 @@ class Deserializer:
             self.cluster_list.append(cluster)
             cluster.ReadAlloc()
 
-        print(len(self.references), self.num_objects_ + 1)
+        # print(len(self.references), self.num_objects_ + 1)
 
         if len(self.references) != self.num_objects_ + 1:
             print('error')
@@ -1762,6 +1894,8 @@ class Deserializer:
             cluster = self.cluster_list[_]
             self.cluster_list.append(cluster)
             cluster.ReadFill()
+
+        self.ReadRoots()
 
         for clazz in self.classes.values():
             print(DartClass(self, clazz))
@@ -1786,9 +1920,9 @@ class Deserializer:
         return self.next_ref_index_
 
     def ReadRoots(self):
-        self.symbol_table_ = ReadRef(self.stream)
-        for i in range(kNumStubEntries):
-            self.code = ReadRef(self.stream)
+        for i in range(kUntaggedObjectFormTo + 1):
+            ReadRef(self.stream)
+        ReadDispatchTable(self)
 
     @property
     def readCluster(self):
@@ -1804,13 +1938,24 @@ class Deserializer:
         cluster = ClusterGetter(cid, is_canonical, self).getCluster()
         # print(cluster, cid)
         return cluster
-
 kCompressedWordSizeLog2 = 2 # fix 3
 kCompressedWordSize = 4     # fix 8
 
 
 kObjectAlignment = 16
 
+
+class ImageReader:
+    def __init__(self, data_image, instructions_image):
+        self.data_image = data_image
+        self.instructions_image_ = instructions_image
+
+    def GetBareInstructionsAt(self, offset):
+        return self.instructions_image_ + offset
+
+    def GetObjectAt(self, offset):
+        objectPtr = UntaggedObject.FromAddr(self.data_image + offset)
+        return objectPtr
 # 快照类型的枚举类
 from enum import Enum
 
@@ -1859,7 +2004,17 @@ kCachedICDataArrayCount = kCachedICDataOneArgWithExactnessTrackingIdx + 1
 
 
 def RoundedAllocationSize(size):
-    return Utils.roundUp(size, kObjectAlignment)
+    return Utils.RoundUp(size, kObjectAlignment)
+
+
+class Code:
+    @staticmethod
+    def EntryPointOf(codePtr):
+        if DART_PRECOMPILED_RUNTIME:
+            #     return code->untag()->entry_point_;
+            return codePtr.untag
+        else:
+            pass
 
 
 class TypedData:
@@ -2059,8 +2214,19 @@ class BaseObject:
         self.name = name
 
 
+class InstructionsTablePtr:
+    def __init__(self, ):
+        self.untag = UntaggedInstructionsTable()
+
+    @staticmethod
+    def EntryPointAt(code_index, ro_data,data_image, instructions_image):
+        # code_index
+        start_pc = ImageReader(data_image, instructions_image).GetBareInstructionsAt(0)  # 每次都不同
+        x2 = ro_data[code_index].pc_offset
+        return start_pc + x2
 DART_PRECOMPILED_RUNTIME = True
 PRODUCT = True
+kHeapObjectTag = 1
 
 
 class UntaggedString:
@@ -2103,6 +2269,29 @@ class UntaggedClass:
         if not DART_PRECOMPILED_RUNTIME:
             self.point_field['allocation_stub'] = 0
             self.point_field['dependent_code'] = 0
+
+
+class UntaggedInstructionsTable_Data:
+    @staticmethod
+    def entries():
+        pass
+
+
+class UntaggedObject:
+    @staticmethod
+    def FromAddr(addr):
+        return addr + kHeapObjectTag
+
+
+class UntaggedInstructionsTable_DataEntry:
+    def __init__(self, pc_offset):
+        self.pc_offset = pc_offset
+        self.stack_map_offset = 0
+
+
+class UntaggedInstructionsTable:
+    def __init__(self):
+        self.rodata_ = UntaggedInstructionsTable_Data()
 
 
 class UntaggedExceptionHandlers:
@@ -2383,10 +2572,6 @@ class UntaggedPatchClass:
         pass
 
 
-
-
-
-
 kMagicOffset = 0
 kMagicSize = 4
 kLengthOffset = kMagicOffset + kMagicSize
@@ -2395,11 +2580,17 @@ kKindOffset = kLengthOffset + kLengthSize
 kKindSize = 8
 kHeaderSize = kKindOffset + kKindSize
 
+# snapshot_instructions 地址就是 _kDartIsolateSnapshotInstructions 的地址
+# snapshot_data         地址就是 _kDartIsolateSnapshotData         的地址
+
+snapshot_data = 0
+snapshot_instructions = 0
+
 
 class Snapshot:
 
-    def __init__(self, snapshot_data):
-        self.snapshot_data = snapshot_data
+    def __init__(self, data, instructions, ):
+        self.snapshot_data = data
         self.stream = BytesIO(self.snapshot_data)
 
     def SnapshotSetupFromBuffer(self):
@@ -2412,26 +2603,36 @@ class Snapshot:
         print(le)
         print(version)
         print(features)
-        Deserializer(stream=self.stream, kind=kind, features=features).deserialize()
+        # data_image_ = 0x7bc8821ee0 snapshot_data = 0x7bc8746790 snapshot_instructions = 0x7bc88537f0
+        Deserializer(stream=self.stream, large_length = le,kind=kind, features=features, data_buffer=0,
+                     instructions_buffer=0).deserialize()
 
     def check_magic(self):
         magic = hex(int.from_bytes(self.stream.read(kMagicSize), 'little'))
         return magic
 
     def large_length(self):
-        length_size = int.from_bytes(self.stream.read(kLengthSize), 'little')
+        length_size = int.from_bytes(self.stream.read(kLengthSize), 'little') + kMagicSize
         return length_size
 
     def kind(self):
         kind = Kind(int.from_bytes(self.stream.read(kKindSize), 'little'))
         return kind
 
+
 kNumStubEntries = 131
 
 class Utils:
     @staticmethod
-    def roundUp(n, m):
+    def RoundUp(n, m):
         return (n - 1) + m - (n - 1) % m
+
+
+from io import BytesIO
+
+from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import SymbolTableSection
+
 
 
 def get_AOTSymbols(sections):
@@ -2472,13 +2673,20 @@ def parse_elf_file(file_path):
                 snapshot['offsets'] = aot_symbol.st_value
                 Snapshots[AOTSymbolsName] = snapshot
 
-    #vm_snapshot_data = Snapshots['_kDartVmSnapshotData']
+    # vm_snapshot_data = Snapshots['_kDartVmSnapshotData']
     # vm roots 加载的是基本类 没必要解析 核心的还是看 isolate
     # vm_snapshot_ = Snapshot(vm_snapshot_data['blob']).SnapshotSetupFromBuffer()
 
+    with open('./res/pc_offset.txt', encoding='utf-8') as file_obj:
+        for line in file_obj:
+            s_list = str(line).split(' ')
+            le = len(s_list)
+            for x in range(1, le, 2):
+                ro_data.append(int(s_list[x]))
     isolate_snapshot_data = Snapshots['_kDartIsolateSnapshotData']
-    isolate_snapshot_ = Snapshot(isolate_snapshot_data['blob']).SnapshotSetupFromBuffer()
+    isolate_snapshot_instructions = Snapshots['_kDartIsolateSnapshotInstructions']
+    isolate_snapshot_ = Snapshot(isolate_snapshot_data['blob'],isolate_snapshot_instructions['blob']).SnapshotSetupFromBuffer()
 
 
 if __name__ == '__main__':
-    parse_elf_file('libapp.so')
+    parse_elf_file('res/libapp.so')
