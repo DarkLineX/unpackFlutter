@@ -97,7 +97,7 @@ class PipelineOwner{
 
 看雪文章 我的主页分享
 
-https://bbs.pediy.com/user-home-957606.htm 
+https://bbs.kanxue.com/user-home-832784.htm
 
 更多相关的可以私聊或者 issue 
 
